@@ -1,0 +1,10 @@
+# Sentaurus TCAD binary mesh and temporary output files
+*.log
+*.cmd.bak
+*.scm.bak
+__pycache__/
+*.tmp
+
+# Large PDF files / personal images if unwanted (keep source code, markdown, and scripts)
+*.jpeg
+*.docx

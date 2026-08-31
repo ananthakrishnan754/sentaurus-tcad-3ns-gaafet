@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent VM Access — Technical Documentation</title>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; max-width: 850px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.6; }
+  h1 { font-size: 1.7em; border-bottom: 3px solid #1a5276; padding-bottom: 10px; }
+  h2 { font-size: 1.25em; margin-top: 2em; color: #1a5276; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  h3 { font-size: 1.05em; margin-top: 1.4em; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 0.95em; }
+  th, td { border: 1px solid #bbb; padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: #eef3f7; font-family: 'Segoe UI', Arial, sans-serif; font-size: 0.9em; }
+  code, pre { font-family: Consolas, 'Courier New', monospace; background: #f4f6f7; }
+  code { padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+  pre { padding: 13px 16px; border-left: 4px solid #5d8aa8; overflow-x: auto; font-size: 0.88em; white-space: pre-wrap; }
+  .note { background: #fffbe8; border: 1px solid #e0d68a; padding: 12px 16px; border-radius: 4px; margin: 16px 0; font-size: 0.95em; }
+  .meta { color: #666; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>AI Agent Access to Virtual Machine<br><span style="font-weight:normal; font-size:0.75em;">Technical Documentation of Methods Used</span></h1>
+<p class="meta">Companion document to the Sentaurus TCAD VM Diagnostic Report &middot; August 2026 &middot; Host: Ubuntu Linux (VirtualBox 7.0.20) &middot; Guest: Red Hat Enterprise Linux 6.6</p>
+
+<h2>Overview</h2>
+<p>An AI coding agent operating on the host workstation accessed the guest virtual machine exclusively through standard, published VirtualBox administration interfaces and native Linux storage tools. No third-party remote-access software, no network services inside the guest (no SSH), and no modifications to guest security boundaries were involved. All access originated from the host machine on which the agent runs.</p>
+
+<h2>Prerequisites</h2>
+<table>
+<tr><th>Requirement</th><th>Purpose</th></tr>
+<tr><td>Oracle Guest Additions installed inside guest (<code>vboxguest</code> kernel module + <code>VBoxService</code> daemon)</td><td>Enables the host&harr;guest communication channel used for execution and file transfer</td></tr>
+<tr><td>Valid guest credentials (user <code>sentaurus</code>)</td><td>Authentication for every guest-control operation</td></tr>
+<tr><td><code>VBoxManage</code> CLI available on host</td><td>All control commands are issued from the host shell</td></tr>
+</table>
+
+<h2>Channel 1 — Remote Command Execution</h2>
+<pre>VBoxManage guestcontrol "Sentaurus TCAD RHEL6" run \
+    --username sentaurus --password 123456 \
+    --exe /bin/sh -- -c '&lt;command&gt;'</pre>
+<p><strong>Mechanism:</strong> the request travels from <code>VBoxManage</code> through the VirtualBox core service, across the emulated PCI device using the Host-Guest Communication Manager (HGCM) protocol, to <code>VBoxService</code> inside the guest, which spawns the requested process as the given user. This is a hypervisor backplane — it functions even when the guest has no IP address or networking at all.</p>
+<div class="note"><strong>Privilege handling:</strong> this API rejects direct root logins by design. Privileged operations were therefore executed as user <code>sentaurus</code> wrapped in <code>sudo -n &lt;cmd&gt;</code>, possible only after the corrupted <code>/etc/sudoers</code> was repaired offline.</div>
+
+<h2>Channel 2 — File Exchange</h2>
+<h3>2.1 Shared folder bridge (primary method)</h3>
+<table>
+<tr><th>Host side</th><th>Guest side</th></tr>
+<tr><td><code>/home/&lt;user&gt;/Documents/swb</code></td><td><code>/media/sf_swb</code></td></tr>
+</table>
+<p>A bidirectional live mapping configured in the VM settings. Scripts were written from the host, executed in the guest via Channel 1, and resulting log files read back from the host. Guest-side access required adding user <code>sentaurus</code> to the <code>vboxsf</code> group.</p>
+<h3>2.2 Guest-control copy operations</h3>
+<pre>VBoxManage guestcontrol &lt;vm&gt; copyto|copyfrom ...</pre>
+<p>Functional early in the session; later became unreliable, after which all transfers moved to the shared-folder route.</p>
+
+<h2>Channel 3 — Offline Filesystem Editing (VM powered off)</h2>
+<pre>qemu-nbd --connect=/dev/nbd0 RedHat_AS6.6.vmdk   # expose VMDK as Linux block device
+vgchange -ay VolGroup                             # activate guest LVM volumes
+mount /dev/VolGroup/lv_root /mnt/guestroot        # mount guest root filesystem
+# ... direct edits to guest files ...
+umount /mnt/guestroot &amp;&amp; vgchange -an VolGroup &amp;&amp; qemu-nbd --disconnect /dev/nbd0</pre>
+<p>Used once, to repair a corrupted <code>/etc/sudoers</code> when the guest could not be relied upon to execute commands. A lesson from this operation is documented below.</p>
+<div class="note"><strong>Operational lesson (SELinux):</strong> editing files offline with inode-replacing tools (<code>sed&nbsp;-i</code>) leaves replacement files without SELinux labels (<code>file_t</code>). On next boot, SELinux correctly blocked services (GDM, HAL) from reading them, producing a display black-screen that mimicked a boot failure. Resolution: <code>restorecon -Rv /etc</code>, restart <code>haldaemon</code> and the display manager. Any future offline edits should be followed by a context restore before booting the guest.</div>
+
+<h2>Channel 4 — Console Control (VM power state &amp; screen)</h2>
+<table>
+<tr><th>Command</th><th>Function</th></tr>
+<tr><td><code>VBoxManage startvm &lt;vm&gt;</code></td><td>Power on</td></tr>
+<tr><td><code>VBoxManage controlvm &lt;vm&gt; acpipowerbutton</code></td><td>Clean shutdown request</td></tr>
+<tr><td><code>VBoxManage controlvm &lt;vm&gt; screenshotpng out.png</code></td><td>Capture current guest framebuffer — served as the agent's visual feedback loop for GUI state</td></tr>
+<tr><td><code>VBoxManage controlvm &lt;vm&gt; keyboardputkey &lt;key&gt;</code></td><td>Synthetic keystrokes into the guest console</td></tr>
+</table>
+
+<h2>Reliability Pattern</h2>
+<p>The <code>--wait-stdout</code>/<code>--wait-stderr</code> options of <code>guestcontrol run</code> proved intermittently unreliable (empty captures). All operations therefore followed a uniform pattern:</p>
+<ol>
+<li>Write a diagnostic script to the shared folder from the host.</li>
+<li>Execute it inside the guest via Channel 1 (output redirected to a file).</li>
+<li>Read the output file back on the host side.</li>
+</ol>
+
+<h2>Explicit Limitations Observed</h2>
+<ul>
+<li>Root login via <code>guestcontrol run</code>: always rejected, regardless of correct password.</li>
+<li>Interactive GUI dialogs inside the guest cannot be driven programmatically.</li>
+<li>SELinux policies inside the guest apply normally and cannot be bypassed through any of these channels.</li>
+<li>Guest firewall/networking state is irrelevant to Channels 1–4; conversely, these channels grant nothing beyond what the specified guest user's permissions allow.</li>
+</ul>
+
+<h2>Security Context</h2>
+<p>All channels bind to the local host's VirtualBox installation and require host-level privileges to invoke. Credentials used protect only a local, personally-owned test VM whose defaults originate from the publicly circulated image; they confer no access to institutional systems. The guest itself remains subject to its own OS security mechanisms (user accounts, sudo policy, SELinux).</p>
+
+</body>
+</html>
