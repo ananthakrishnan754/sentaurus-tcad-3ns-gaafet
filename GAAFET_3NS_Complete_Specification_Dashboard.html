@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3-Stack Nanosheet GAAFET - Comprehensive Technical Specifications & Parameter Glossary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-card: rgba(17, 24, 39, 0.7);
+      --bg-card-hover: rgba(31, 41, 55, 0.8);
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(6, 182, 212, 0.3);
+      --glass-bg: rgba(15, 23, 42, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --shadow-glow: 0 0 25px rgba(6, 182, 212, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding-bottom: 60px;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    header {
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 18px 40px;
+    }
+
+    .header-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+    }
+
+    .brand-text h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #fff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .search-box {
+      position: relative;
+      width: 340px;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 16px 10px 40px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      fill: var(--text-muted);
+      width: 18px;
+      height: 18px;
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 30px auto;
+      padding: 0 30px;
+    }
+
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(30, 41, 59, 0.7));
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 30px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #ffffff, #67e8f9, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 15px;
+      max-width: 900px;
+      margin-bottom: 24px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-cyan);
+    }
+
+    .stat-val {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    .stat-lbl {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: rgba(17, 24, 39, 0.6);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      background: rgba(31, 41, 55, 0.8);
+      color: #fff;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin: 35px 0 18px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 22px;
+      background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-purple));
+      border-radius: 4px;
+    }
+
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      margin-bottom: 30px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--accent-cyan);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.8px;
+    }
+
+    td {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--bg-card-hover);
+    }
+
+    .code-tag {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(6, 182, 212, 0.1);
+      color: var(--accent-cyan);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      border: 1px solid rgba(6, 182, 212, 0.2);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-purple { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-rose { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); }
+
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 992px) {
+      .grid-2col { grid-template-columns: 1fr; }
+    }
+
+    .card-box {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 24px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 24px;
+    }
+
+    .card-box h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      margin-bottom: 14px;
+      color: #fff;
+    }
+
+    .term-def-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .term-item {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+
+    .term-item:hover {
+      border-color: var(--accent-cyan);
+      transform: translateX(4px);
+    }
+
+    .term-name {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent-cyan);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .term-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px;
+      color: var(--text-muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border-color);
+      margin-top: 50px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo">GAA</div>
+        <div class="brand-text">
+          <h1>3-Stack Nanosheet GAAFET Parameter Master Spec</h1>
+          <p>Synopsys Sentaurus TCAD Model Specification & Glossary</p>
+        </div>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="searchInput" placeholder="Filter parameters, terms, or units..." onkeyup="filterTables()">
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO DASHBOARD BANNER -->
+    <div class="hero-banner">
+      <div class="hero-title">Sub-5nm Nanosheet Gate-All-Around Transistor</div>
+      <div class="hero-desc">
+        Complete reference catalog of all physical, geometrical, material, doping, electrostatic, transport, and TCAD solver parameters for the 3-nanosheet NMOS architecture with Bottom Dielectric Isolation (BDI) and Substrate Base.
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val">10 nm</div>
+          <div class="stat-lbl">Gate Length (Lg)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">15 nm</div>
+          <div class="stat-lbl">Sheet Width (Wns)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">4 nm</div>
+          <div class="stat-lbl">Sheet Thickness (Tns)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">65.0 mV/dec</div>
+          <div class="stat-lbl">Subthreshold Swing</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">10.3 mV/V</div>
+          <div class="stat-lbl">DIBL</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">6.65 × 10⁹</div>
+          <div class="stat-lbl">Ion / Ioff Ratio</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchSection('all')">All Specifications</button>
+      <button class="tab-btn" onclick="switchSection('geometry')">1. Geometry & Dimensions</button>
+      <button class="tab-btn" onclick="switchSection('materials')">2. Materials & Stack</button>
+      <button class="tab-btn" onclick="switchSection('doping')">3. Doping & Junctions</button>
+      <button class="tab-btn" onclick="switchSection('fom')">4. Electrical FOMs</button>
+      <button class="tab-btn" onclick="switchSection('area')">5. Area & Cross-Section</button>
+      <button class="tab-btn" onclick="switchSection('tcad')">6. TCAD Decks & Solvers</button>
+      <button class="tab-btn" onclick="switchSection('glossary')">7. Terms Glossary</button>
+    </div>
+
+    <!-- SECTION 1: GEOMETRY -->
+    <div class="spec-section" id="sec-geometry">
+      <div class="section-title">1. Device Geometry & Dimensional Parameters</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter Name</th>
+              <th>TCAD Variable</th>
+              <th>Value</th>
+              <th>Units</th>
+              <th>Category</th>
+              <th>Physical Description & Functional Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Gate Length</strong></td>
+              <td><span class="code-tag">Lg</span></td>
+              <td>10.0</td>
+              <td>nm (0.010 µm)</td>
+              <td><span class="badge badge-cyan">Channel</span></td>
+              <td>Physical gate channel length along the electron transport direction (X-axis).</td>
+            </tr>
+            <tr>
+              <td><strong>Nanosheet Width</strong></td>
+              <td><span class="code-tag">Wns</span></td>
+              <td>15.0</td>
+              <td>nm (0.015 µm)</td>
+              <td><span class="badge badge-cyan">Channel</span></td>
+              <td>Horizontal width of each single-crystal silicon nanosheet channel (Y-axis).</td>
+            </tr>
+            <tr>
+              <td><strong>Nanosheet Thickness</strong></td>
+              <td><span class="code-tag">Tns</span></td>
+              <td>4.0</td>
+              <td>nm (0.004 µm)</td>
+              <td><span class="badge badge-purple">Quantum</span></td>
+              <td>Vertical thickness per nanosheet body enforcing quantum confinement (Z-axis).</td>
+            </tr>
+            <tr>
+              <td><strong>Vertical Inter-Sheet Gap</strong></td>
+              <td><span class="code-tag">Tgap</span></td>
+              <td>8.0</td>
+              <td>nm (0.008 µm)</td>
+              <td><span class="badge badge-cyan">Gate Stack</span></td>
+              <td>Suspension gap between adjacent nanosheets filled with High-κ dielectric & metal gate.</td>
+            </tr>
+            <tr>
+              <td><strong>Inner Spacer Length</strong></td>
+              <td><span class="code-tag">Lsp</span></td>
+              <td>5.0</td>
+              <td>nm (0.005 µm)</td>
+              <td><span class="badge badge-amber">Isolation</span></td>
+              <td>Si₃N₄/low-κ dielectric spacer isolating S/D extensions from the metal gate shell.</td>
+            </tr>
+            <tr>
+              <td><strong>Source / Drain Extension Length</strong></td>
+              <td><span class="code-tag">Ls / Ld</span></td>
+              <td>15.0</td>
+              <td>nm (0.015 µm)</td>
+              <td><span class="badge badge-emerald">Reservoir</span></td>
+              <td>Length of degenerate N+ silicon contact reservoirs on each side of the channel.</td>
+            </tr>
+            <tr>
+              <td><strong>Interfacial Oxide Layer</strong></td>
+              <td><span class="code-tag">Til</span></td>
+              <td>0.5</td>
+              <td>nm (0.0005 µm)</td>
+              <td><span class="badge badge-cyan">Gate Stack</span></td>
+              <td>Ultra-thin SiO₂ passivation layer providing low interface trap density (Nit = 0).</td>
+            </tr>
+            <tr>
+              <td><strong>High-κ Dielectric Thickness</strong></td>
+              <td><span class="code-tag">Thk</span></td>
+              <td>1.5</td>
+              <td>nm (0.0015 µm)</td>
+              <td><span class="badge badge-cyan">Gate Stack</span></td>
+              <td>HfO₂ high-permittivity sleeve coating all 4 sides of each nanosheet (EOT ≈ 0.76 nm).</td>
+            </tr>
+            <tr>
+              <td><strong>Metal Gate Shell Thickness</strong></td>
+              <td><span class="code-tag">Tgm</span></td>
+              <td>4.0</td>
+              <td>nm (0.004 µm)</td>
+              <td><span class="badge badge-cyan">Conductor</span></td>
+              <td>TiN workfunction metal layer wrapping completely around every nanosheet sleeve.</td>
+            </tr>
+            <tr>
+              <td><strong>Bottom Dielectric Isolation (BDI)</strong></td>
+              <td><span class="code-tag">Tbdi</span></td>
+              <td>10.0</td>
+              <td>nm (0.010 µm)</td>
+              <td><span class="badge badge-rose">Substrate</span></td>
+              <td>SiO₂ insulating floor cutting off parasitic sub-nanosheet substrate punch-through.</td>
+            </tr>
+            <tr>
+              <td><strong>Silicon Substrate Depth</strong></td>
+              <td><span class="code-tag">Tsub</span></td>
+              <td>20.0</td>
+              <td>nm (0.020 µm)</td>
+              <td><span class="badge badge-rose">Substrate</span></td>
+              <td>P-type bulk silicon handle providing mechanical support & thermal heat sink.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 2: MATERIALS -->
+    <div class="spec-section" id="sec-materials">
+      <div class="section-title">2. Material Stack & Physical Constants</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Material Name</th>
+              <th>Chemical / Symbol</th>
+              <th>Dielectric Constant (κ)</th>
+              <th>Bandgap (Eg)</th>
+              <th>Work Function / Affinity</th>
+              <th>Device Region & Function</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Single-Crystal Silicon</strong></td>
+              <td><span class="code-tag">Silicon</span></td>
+              <td>11.9</td>
+              <td>1.12 eV</td>
+              <td>χ = 4.05 eV</td>
+              <td>Nanosheet channels (1, 2, 3) & P-type substrate base.</td>
+            </tr>
+            <tr>
+              <td><strong>N+ Doped Silicon</strong></td>
+              <td><span class="code-tag">Silicon:P</span></td>
+              <td>11.9</td>
+              <td>Slotboom BGN</td>
+              <td>χ = 4.05 eV</td>
+              <td>Degenerate N+ Source and Drain carrier reservoirs.</td>
+            </tr>
+            <tr>
+              <td><strong>Hafnium Oxide</strong></td>
+              <td><span class="code-tag">HfO2</span></td>
+              <td>22.0</td>
+              <td>5.70 eV</td>
+              <td>χ = 1.50 eV</td>
+              <td>High-κ gate dielectric sleeve wrapping each channel.</td>
+            </tr>
+            <tr>
+              <td><strong>Interfacial Oxide / BDI</strong></td>
+              <td><span class="code-tag">Oxide / SiO2</span></td>
+              <td>3.9</td>
+              <td>9.00 eV</td>
+              <td>χ = 0.90 eV</td>
+              <td>Interfacial passivation layer & Bottom Dielectric Isolation plate.</td>
+            </tr>
+            <tr>
+              <td><strong>Titanium Nitride Gate</strong></td>
+              <td><span class="code-tag">TiN</span></td>
+              <td>Conductor</td>
+              <td>N/A</td>
+              <td><strong>Φm = 4.40 eV</strong></td>
+              <td>Workfunction metal gate shell determining threshold voltage.</td>
+            </tr>
+            <tr>
+              <td><strong>Silicon Nitride Spacers</strong></td>
+              <td><span class="code-tag">SiliconNitride</span></td>
+              <td>7.5</td>
+              <td>5.30 eV</td>
+              <td>χ = 2.10 eV</td>
+              <td>Inner spacers isolating gate metal from S/D reservoirs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 3: DOPING -->
+    <div class="spec-section" id="sec-doping">
+      <div class="section-title">3. Doping Distributions & Junction Parameters</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Doping Region</th>
+              <th>Dopant Species</th>
+              <th>Type</th>
+              <th>Concentration</th>
+              <th>Profile Model</th>
+              <th>Functional Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Source Reservoir</strong></td>
+              <td>Phosphorus (P)</td>
+              <td>Donor (N+)</td>
+              <td><span class="code-tag">1.0e20 cm⁻³</span></td>
+              <td>Constant / Error Function</td>
+              <td>Provides high electron density & ultra-low contact sheet resistance.</td>
+            </tr>
+            <tr>
+              <td><strong>Drain Reservoir</strong></td>
+              <td>Phosphorus (P)</td>
+              <td>Donor (N+)</td>
+              <td><span class="code-tag">1.0e20 cm⁻³</span></td>
+              <td>Constant / Error Function</td>
+              <td>Collects high-velocity electrons under high Vds bias.</td>
+            </tr>
+            <tr>
+              <td><strong>Channel Nanosheets (1-3)</strong></td>
+              <td>Boron (B)</td>
+              <td>Acceptor (P-)</td>
+              <td><span class="code-tag">1.0e15 cm⁻³</span></td>
+              <td>Uniform Light Profile</td>
+              <td>Near-intrinsic body minimizing impurity scattering & mobility degradation.</td>
+            </tr>
+            <tr>
+              <td><strong>Substrate Base</strong></td>
+              <td>Boron (B)</td>
+              <td>Acceptor (P-)</td>
+              <td><span class="code-tag">1.0e15 cm⁻³</span></td>
+              <td>Uniform P-Well</td>
+              <td>P-N junction diode isolation preventing substrate current leakage.</td>
+            </tr>
+            <tr>
+              <td><strong>Lateral Junction Straggle</strong></td>
+              <td>Analytical Roll-off</td>
+              <td>Gaussian</td>
+              <td><span class="code-tag">σx = 2.0 nm</span></td>
+              <td>Smooth Erf Transition</td>
+              <td>Gradual lateral junction transition preventing abrupt mesh singularities.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 4: FOM -->
+    <div class="spec-section" id="sec-fom">
+      <div class="section-title">4. Electrical Figures of Merit (FOMs) & Results</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Metric / Figure of Merit</th>
+              <th>Symbol</th>
+              <th>TCAD Value</th>
+              <th>Normalized (Wperim = 114nm)</th>
+              <th>Target / Benchmark</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Absolute ON-State Drive Current</strong></td>
+              <td>Ion</td>
+              <td><strong>163.93 µA</strong></td>
+              <td>1.438 mA/µm (3.64 mA/µm layout)</td>
+              <td>1.0 - 2.5 mA/µm</td>
+              <td><span class="badge badge-emerald">Optimal</span></td>
+            </tr>
+            <tr>
+              <td><strong>Absolute OFF-State Leakage</strong></td>
+              <td>Ioff</td>
+              <td><strong>24.64 fA</strong></td>
+              <td>0.216 pA/µm (0.55 pA/µm layout)</td>
+              <td>&lt; 100 pA/µm</td>
+              <td><span class="badge badge-emerald">Ultra-Low</span></td>
+            </tr>
+            <tr>
+              <td><strong>ON/OFF Current Ratio</strong></td>
+              <td>Ion/Ioff</td>
+              <td><strong>6.65 × 10⁹</strong></td>
+              <td>6.65 × 10⁹</td>
+              <td>&gt; 10⁶</td>
+              <td><span class="badge badge-emerald">Exceeds</span></td>
+            </tr>
+            <tr>
+              <td><strong>Subthreshold Swing</strong></td>
+              <td>SS</td>
+              <td><strong>65.00 mV/dec</strong></td>
+              <td>65.00 mV/dec</td>
+              <td>64.0 - 68.0 mV/dec</td>
+              <td><span class="badge badge-cyan">Ideal Match</span></td>
+            </tr>
+            <tr>
+              <td><strong>Drain-Induced Barrier Lowering</strong></td>
+              <td>DIBL</td>
+              <td><strong>10.32 mV/V</strong></td>
+              <td>10.32 mV/V</td>
+              <td>20.0 - 40.0 mV/V</td>
+              <td><span class="badge badge-cyan">Ideal Control</span></td>
+            </tr>
+            <tr>
+              <td><strong>Linear Threshold Voltage</strong></td>
+              <td>Vth,lin</td>
+              <td><strong>0.077 V (77 mV)</strong></td>
+              <td>0.077 V</td>
+              <td>0.20 - 0.30 V</td>
+              <td><span class="badge badge-amber">Tuned Metal</span></td>
+            </tr>
+            <tr>
+              <td><strong>Saturation Threshold Voltage</strong></td>
+              <td>Vth,sat</td>
+              <td><strong>0.070 V (70 mV)</strong></td>
+              <td>0.070 V</td>
+              <td>0.18 - 0.28 V</td>
+              <td><span class="badge badge-amber">Tuned Metal</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 5: AREA -->
+    <div class="spec-section" id="sec-area">
+      <div class="section-title">5. Comprehensive Area & Spatial Metrics</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Area Metric Description</th>
+              <th>Formula / Derivation</th>
+              <th>Value (nm²)</th>
+              <th>Value (µm²)</th>
+              <th>Physical & Layout Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Single Sheet Cross-Sectional Area</strong></td>
+              <td>Wns × Tns = 15nm × 4nm</td>
+              <td>60 nm²</td>
+              <td>0.00006 µm²</td>
+              <td>Conduction area of 1 individual nanosheet.</td>
+            </tr>
+            <tr>
+              <td><strong>Total Conduction Cross-Sectional Area</strong></td>
+              <td>3 × (Wns × Tns) = 3 × 60nm²</td>
+              <td><strong>180 nm²</strong></td>
+              <td>0.00018 µm²</td>
+              <td>Combined silicon conduction cross-section of all 3 sheets.</td>
+            </tr>
+            <tr>
+              <td><strong>Single Sheet Top Gate Area</strong></td>
+              <td>Lg × Wns = 10nm × 15nm</td>
+              <td>150 nm²</td>
+              <td>0.00015 µm²</td>
+              <td>Flat 2D projection gate area per sheet.</td>
+            </tr>
+            <tr>
+              <td><strong>Total 3D Effective Gate Surface Area</strong></td>
+              <td>Lg × Wperim = 10nm × 114nm</td>
+              <td><strong>1,140 nm²</strong></td>
+              <td><strong>0.00114 µm²</strong></td>
+              <td>Total 3D surface area wrapped by gate dielectric (Perimeter = 114nm).</td>
+            </tr>
+            <tr>
+              <td><strong>Nanosheet Core Footprint Area</strong></td>
+              <td>Ltotal × Wns = 50nm × 15nm</td>
+              <td>750 nm²</td>
+              <td>0.00075 µm²</td>
+              <td>Active silicon nanosheet layout footprint.</td>
+            </tr>
+            <tr>
+              <td><strong>Total Transistor Wafer Footprint Area</strong></td>
+              <td>Ltotal × Wtotal = 50nm × 27nm</td>
+              <td><strong>1,350 nm²</strong></td>
+              <td><strong>0.00135 µm²</strong></td>
+              <td>Total silicon wafer layout area consumed by 1 complete transistor cell.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 6: TCAD -->
+    <div class="spec-section" id="sec-tcad">
+      <div class="section-title">6. TCAD Simulation Decks & Solver Commands</div>
+      <div class="grid-2col">
+        <div class="card-box">
+          <h3>Structure Editor (SDE Scheme Commands)</h3>
+          <ul class="term-def-list">
+            <li class="term-item">
+              <div class="term-name"><code>(sdegeo:create-cuboid ...)</code></div>
+              <div class="term-desc">Creates 3D solid spatial primitives for nanosheets, oxide sleeves, inner spacers, metal gate shell, BDI, and substrate.</div>
+            </li>
+            <li class="term-item">
+              <div class="term-name"><code>(sdedr:define-constant-profile ...)</code></div>
+              <div class="term-desc">Defines constant Phosphorus ($1\times10^{20}\text{ cm}^{-3}$) and Boron ($1\times10^{15}\text{ cm}^{-3}$) doping regions.</div>
+            </li>
+            <li class="term-item">
+              <div class="term-name"><code>(sdedr:define-analytical-profile-placement ...)</code></div>
+              <div class="term-desc">Implements smooth Gaussian error function (Erf) lateral junction transitions with $\sigma_x = 2.0\text{ nm}$.</div>
+            </li>
+            <li class="term-item">
+              <div class="term-name"><code>(sdedr:define-refinement-size ...)</code></div>
+              <div class="term-desc">Configures anisotropic 3D mesh resolution ($\Delta x=1\text{nm}, \Delta y=1\text{nm}, \Delta z=0.5\text{nm}$ inside nanosheets).</div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card-box">
+          <h3>Device Simulator (SDevice Physics Keywords)</h3>
+          <ul class="term-def-list">
+            <li class="term-item">
+              <div class="term-name"><code>eQuantumPotential(Density)</code></div>
+              <div class="term-desc">Solves 1D/3D Density-Gradient quantum equations to account for quantum confinement in $4\text{ nm}$ thin sheets.</div>
+            </li>
+            <li class="term-item">
+              <div class="term-name"><code>Mobility(Enormal(Lombardi))</code></div>
+              <div class="term-desc">Models transverse electric field surface roughness & acoustic phonon mobility degradation at high gate bias.</div>
+            </li>
+            <li class="term-item">
+              <div class="term-name"><code>Mobility(HighFieldSaturation)</code></div>
+              <div class="term-desc">Canali model accounting for electron velocity saturation at high electric fields ($V_{DS} = 0.70\text{ V}$).</div>
+            </li>
+            <li class="term-item">
+              <div class="term-name"><code>Math { Method = Super / ParDiSo }</code></div>
+              <div class="term-desc">64-bit parallel sparse direct solver utilizing 4 CPU threads with damped Newton-Raphson iterations.</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 7: GLOSSARY -->
+    <div class="spec-section" id="sec-glossary">
+      <div class="section-title">7. Glossary of Terms & Semiconductor Acronyms</div>
+      <div class="card-box">
+        <div class="term-def-list">
+          <div class="term-item">
+            <div class="term-name">GAAFET <span class="badge badge-cyan">Architecture</span></div>
+            <div class="term-desc"><strong>Gate-All-Around Field-Effect Transistor:</strong> A 3D transistor design where the gate dielectric and conductor wrap completely around all 4 sides of the channel bodies, providing maximum electrostatic control over short-channel effects.</div>
+          </div>
+          <div class="term-item">
+            <div class="term-name">BDI Oxide <span class="badge badge-rose">Isolation</span></div>
+            <div class="term-desc"><strong>Bottom Dielectric Isolation Oxide:</strong> An ultra-thin insulating dielectric plate ($\text{SiO}_2$) placed between the lowest nanosheet's gate metal and the bulk silicon substrate to eliminate sub-nanosheet punch-through leakage.</div>
+          </div>
+          <div class="term-item">
+            <div class="term-name">EOT <span class="badge badge-purple">Gate Stack</span></div>
+            <div class="term-desc"><strong>Equivalent Oxide Thickness:</strong> The theoretical thickness of pure $\text{SiO}_2$ required to achieve the same gate capacitance as a multi-layer High-κ stack ($\text{SiO}_2 + \text{HfO}_2$). Calculated as $\text{EOT} = T_{il} + T_{hk} \times (\kappa_{\text{SiO2}} / \kappa_{\text{HfO2}}) \approx 0.76\text{ nm}$.</div>
+          </div>
+          <div class="term-item">
+            <div class="term-name">DIBL <span class="badge badge-amber">Electrostatics</span></div>
+            <div class="term-desc"><strong>Drain-Induced Barrier Lowering:</strong> A short-channel effect where high drain voltage ($V_{DS}$) lowers the potential barrier at the source junction, shifting threshold voltage lower. Measured in $\text{mV/V}$ as $(V_{TH,lin} - V_{TH,sat}) / (V_{DS,sat} - V_{DS,lin})$.</div>
+          </div>
+          <div class="term-item">
+            <div class="term-name">Subthreshold Swing (SS) <span class="badge badge-amber">Electrostatics</span></div>
+            <div class="term-desc"><strong>Subthreshold Swing:</strong> The gate voltage change required to increase drain current by one order of magnitude ($10\times$) in the subthreshold region. Theoretical thermal limit at $300\text{ K}$ is $60\text{ mV/dec}$.</div>
+          </div>
+          <div class="term-item">
+            <div class="term-name">Inner Spacer <span class="badge badge-emerald">Fabrication</span></div>
+            <div class="term-desc"><strong>Inner Dielectric Spacer:</strong> A self-aligned dielectric plug ($\text{Si}_3\text{N}_4$ or low-κ) fabricated between adjacent nanosheets under the gate edges to reduce parasitic gate-to-source/drain capacitance ($C_{gs}, C_{gd}$).</div>
+          </div>
+          <div class="term-item">
+            <div class="term-name">Density-Gradient Model <span class="badge badge-cyan">Quantum Physics</span></div>
+            <div class="term-desc"><strong>Density-Gradient Quantum Correction:</strong> A macroscopic quantum model implemented in TCAD that solves a quantum potential correction equation derived from Wigner function moments to account for carrier quantum confinement away from oxide interfaces.</div>
+          </div>
+          <div class="term-item">
+            <div class="term-name">Workfunction Gate Metal <span class="badge badge-purple">Conductor</span></div>
+            <div class="term-desc"><strong>Workfunction Metal (WFM):</strong> A specific metal alloy (e.g., $\text{TiN}$) engineered to have an exact workfunction ($\Phi_m = 4.40\text{ eV}$) that sets the threshold voltage ($V_{TH}$) without requiring heavy channel doping.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    3-Stack Nanosheet Gate-All-Around (GAAFET) NMOS Transistor Specification Dashboard | Generated for Synopsys Sentaurus TCAD Pipeline
+  </footer>
+
+  <script>
+    function switchSection(secId) {
+      const tabs = document.querySelectorAll('.tab-btn');
+      tabs.forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const sections = document.querySelectorAll('.spec-section');
+      sections.forEach(s => {
+        if (secId === 'all') {
+          s.style.display = 'block';
+        } else {
+          if (s.id === 'sec-' + secId) {
+            s.style.display = 'block';
+          } else {
+            s.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    function filterTables() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const rows = document.querySelectorAll('tbody tr, .term-item');
+
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (text.includes(query)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
