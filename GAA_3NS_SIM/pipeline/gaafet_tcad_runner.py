@@ -367,8 +367,9 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
         vg_l = mat_l[:, ds_l.index(vg_col_l)]
         id_l = np.abs(mat_l[:, ds_l.index(id_col_l)])
 
-        sort_l = np.argsort(vg_l)
-        vg_l, id_l = vg_l[sort_l], id_l[sort_l]
+        vg_l_u, idx_l_u = np.unique(vg_l, return_index=True)
+        id_l = id_l[idx_l_u]
+        vg_l = vg_l_u
         mask_l = (vg_l >= 0.0) & (vg_l <= vdd + 0.01)
         vg_l, id_l = vg_l[mask_l], id_l[mask_l]
 
@@ -379,8 +380,9 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
         vg_s = mat_s[:, ds_s.index(vg_col_s)]
         id_s = np.abs(mat_s[:, ds_s.index(id_col_s)])
 
-        sort_s = np.argsort(vg_s)
-        vg_s, id_s = vg_s[sort_s], id_s[sort_s]
+        vg_s_u, idx_s_u = np.unique(vg_s, return_index=True)
+        id_s = id_s[idx_s_u]
+        vg_s = vg_s_u
         mask_s = (vg_s >= 0.0) & (vg_s <= vdd + 0.01)
         vg_s, id_s = vg_s[mask_s], id_s[mask_s]
 
