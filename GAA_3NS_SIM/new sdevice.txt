@@ -1,0 +1,421 @@
+*======================================================================
+* 3-STACK ADVANCED NANOSHEET NMOS GAAFET
+* SYNOPSYS SENTAURUS DEVICE (SDEVICE) COMMAND DECK
+*
+* Project: AI-Assisted TCAD Design - Device-Level PPA Optimization
+*
+* Device Specifications:
+*   - Architecture: Gate-All-Around (GAA) Nanosheet NMOS (3 Sheets)
+*   - Gate Length (Lg)         : 10 nm
+*   - Nanosheet Width (Wns)    : 15 nm
+*   - Nanosheet Thickness (Tns): 4 nm
+*   - Gate Dielectric          : HfO2 (1 nm) / SiO2 Interfacial Layer (0.5 nm)
+*   - Workfunction (Wf)        : 4.38 eV (n-type TiN)
+*
+* Simulation Output Targets for PPA & ML Dataset:
+*   1. Linear Id-Vg (Vds = 0.05 V)  -> Vth_lin, SS_lin
+*   2. Saturation Id-Vg (Vds = 0.50 V) -> Ion, Ioff, Vth_sat, SS_sat, DIBL
+*   3. AC Small-Signal Capacitance   -> Cgg, Cgs, Cgd, Gm, Intrinsic Delay (tau)
+*   4. Id-Vd Output Family of Curves -> Vgs = 0.30 V, 0.50 V, 0.70 V
+*======================================================================
+
+
+File {
+    Grid    = "GAAFET_3Sheet_NMOS_msh.tdr"
+    Plot    = "GAAFET_3Sheet_NMOS_des.tdr"
+    Current = "GAAFET_3Sheet_NMOS_des.plt"
+    Output  = "GAAFET_3Sheet_NMOS_des.log"
+}
+
+
+*----------------------------------------------------------------------
+* 1. ELECTRODES & CONTACT PROPERTIES
+*----------------------------------------------------------------------
+Electrode {
+    {
+        Name    = "source"
+        Voltage = 0.0
+    }
+
+    {
+        Name    = "drain"
+        Voltage = 0.0
+    }
+
+    {
+        Name         = "gate"
+        Voltage      = 0.0
+        Workfunction = 4.38   * Calibrated for Target Vth ~ 0.25 - 0.30 V
+    }
+}
+
+
+*----------------------------------------------------------------------
+* 2. PHYSICS MODELS
+*----------------------------------------------------------------------
+Physics {
+
+    * Fermi-Dirac carrier statistics for degenerate S/D doping
+    Fermi
+
+    * Bandgap narrowing in heavily doped source/drain
+    EffectiveIntrinsicDensity (
+        OldSlotboom
+    )
+
+    * Multi-mechanism mobility model for sub-5nm nanosheets
+    Mobility (
+        DopingDep
+        Enormal (
+            Lombardi
+        )
+        ThinLayer (
+            eQuantumPotential
+        )
+        HighFieldSaturation (
+            GradQuasiFermi
+        )
+    )
+
+    * Recombination & Short-Channel Leakage (SRH + Auger + Band-to-Band Tunneling)
+    Recombination (
+        SRH (
+            DopingDep
+            TempDependence
+        )
+        Auger
+        Band2Band (
+            Hurkx
+        )
+    )
+
+    * Density Gradient Quantum Confinement Potential for 4 nm 3D sheets
+    eQuantumPotential (
+        Density
+    )
+}
+
+
+*----------------------------------------------------------------------
+* 3. NUMERICAL SOLVER & CONVERGENCE SETTINGS
+*----------------------------------------------------------------------
+Math {
+    Extrapolate
+    Derivatives
+    RelErrControl
+
+    Digits     = 5
+    Iterations = 40
+    NotDamped  = 50
+
+    * 64-Bit Parallel Direct Solver for 3D Meshes
+    Method          = ParDiSo
+    NumberOfThreads = 4
+
+    * Convergence Scaling for 3D Density Gradient
+    ErrRef(electron)          = 1e10
+    ErrRef(hole)              = 1e10
+    ErrRef(eQuantumPotential) = 1e-4
+    RHSmin                    = 1e-15
+
+    eDriftDiffusion
+}
+
+
+*----------------------------------------------------------------------
+* 4. 3D TDR PLOT QUANTITIES
+*----------------------------------------------------------------------
+Plot {
+    * Electrostatics
+    Potential
+    ElectricField/Vector
+    SpaceCharge
+
+    * Carrier Densities & Quantum Potential
+    eDensity
+    hDensity
+    eQuantumPotential
+
+    * Current Transport Vectors
+    eCurrent/Vector
+    hCurrent/Vector
+    TotalCurrent/Vector
+
+    * Mobility & Carrier Velocities
+    eMobility
+    hMobility
+    eVelocity/Vector
+    hVelocity/Vector
+
+    * Band Structure & Quasi-Fermi Levels
+    ConductionBand
+    ValenceBand
+    eQuasiFermi
+    hQuasiFermi
+
+    * Doping & Generation-Recombination Rates
+    Doping
+    DonorConcentration
+    AcceptorConcentration
+    SRHRecombination
+    AugerRecombination
+    Band2Band
+}
+
+
+*----------------------------------------------------------------------
+* 5. SOLUTION SEQUENCE
+*----------------------------------------------------------------------
+Solve {
+
+    *==================================================================
+    * 5.1 INITIAL EQUILIBRIUM CONVERGENCE (ZERO BIAS)
+    * Robust 3-tier step to prevent Newton divergence
+    *==================================================================
+    Coupled (
+        Iterations = 100
+        LineSearchDamping = 1e-4
+    ) {
+        Poisson
+    }
+
+    Coupled (
+        Iterations = 100
+    ) {
+        Poisson
+        Electron
+        Hole
+    }
+
+    Coupled (
+        Iterations = 100
+    ) {
+        Poisson
+        Electron
+        Hole
+        eQuantumPotential
+    }
+
+
+    *==================================================================
+    * 5.2 LINEAR ID-VG TRANSFER SWEEP (Vds = 0.05 V)
+    * Extracts: Vth_lin, SS_lin
+    *==================================================================
+    NewCurrentPrefix = "Ramp_Vd_lin_"
+    Quasistationary (
+        InitialStep = 0.005
+        Increment   = 1.30
+        Decrement   = 2.0
+        MinStep     = 1e-7
+        MaxStep     = 0.01
+
+        Goal {
+            Name    = "drain"
+            Voltage = 0.05
+        }
+    ) {
+        Coupled ( Iterations = 50 ) {
+            Poisson
+            Electron
+            Hole
+            eQuantumPotential
+        }
+    }
+
+    NewCurrentPrefix = "IdVg_Vd005_"
+    Quasistationary (
+        InitialStep = 0.005
+        Increment   = 1.30
+        Decrement   = 2.0
+        MinStep     = 1e-7
+        MaxStep     = 0.01
+
+        Goal {
+            Name    = "gate"
+            Voltage = 0.70
+        }
+    ) {
+        Coupled ( Iterations = 50 ) {
+            Poisson
+            Electron
+            Hole
+            eQuantumPotential
+        }
+    }
+
+    *- Ramp Gate back to 0.0 V at Vds = 0.05 V
+    Quasistationary (
+        InitialStep = 0.01
+        Increment   = 1.40
+        Decrement   = 2.0
+        MinStep     = 1e-7
+        MaxStep     = 0.05
+
+        Goal {
+            Name    = "gate"
+            Voltage = 0.0
+        }
+    ) {
+        Coupled ( Iterations = 50 ) {
+            Poisson
+            Electron
+            Hole
+            eQuantumPotential
+        }
+    }
+
+
+    *==================================================================
+    * 5.3 SATURATION ID-VG & AC CAPACITANCE SWEEP (Vds = 0.50 V)
+    * Extracts: Ion, Ioff, Vth_sat, SS_sat, DIBL, Cgg, Cgs, Cgd, Gm, Tau
+    *==================================================================
+    NewCurrentPrefix = "Ramp_Vd_sat_"
+    Quasistationary (
+        InitialStep = 0.005
+        Increment   = 1.30
+        Decrement   = 2.0
+        MinStep     = 1e-7
+        MaxStep     = 0.02
+
+        Goal {
+            Name    = "drain"
+            Voltage = 0.50
+        }
+    ) {
+        Coupled ( Iterations = 50 ) {
+            Poisson
+            Electron
+            Hole
+            eQuantumPotential
+        }
+    }
+
+    NewCurrentPrefix = "IdVg_AC_Vd050_"
+    Quasistationary (
+        InitialStep = 0.002
+        Increment   = 1.30
+        Decrement   = 2.0
+        MinStep     = 1e-7
+        MaxStep     = 0.01
+
+        Goal {
+            Name    = "gate"
+            Voltage = 0.70
+        }
+    ) {
+        * AC small-signal simulation (f = 1 GHz) for dynamic capacitance & delay extraction
+        ACCoupled (
+            Iterations     = 50
+            StartFreq      = 1e9
+            EndFreq        = 1e9
+            NumberOfPoints = 1
+        ) {
+            Poisson
+            Electron
+            Hole
+            eQuantumPotential
+        }
+    }
+
+    *- Return to Equilibrium (Vds = 0.0 V, Vgs = 0.0 V)
+    Quasistationary (
+        InitialStep = 0.01
+        Increment   = 1.40
+        Decrement   = 2.0
+        MinStep     = 1e-7
+        MaxStep     = 0.05
+
+        Goal {
+            Name    = "drain"
+            Voltage = 0.0
+        }
+    ) {
+        Coupled ( Iterations = 50 ) {
+            Poisson
+            Electron
+            Hole
+            eQuantumPotential
+        }
+    }
+
+    Quasistationary (
+        InitialStep = 0.01
+        Increment   = 1.40
+        Decrement   = 2.0
+        MinStep     = 1e-7
+        MaxStep     = 0.05
+
+        Goal {
+            Name    = "gate"
+            Voltage = 0.0
+        }
+    ) {
+        Coupled ( Iterations = 50 ) {
+            Poisson
+            Electron
+            Hole
+            eQuantumPotential
+        }
+    }
+
+
+    *==================================================================
+    * 5.4 ID-VD OUTPUT CHARACTERISTICS (FAMILY OF CURVES)
+    * Sweeps Vds from 0.0 V -> 0.70 V at Vgs = 0.30 V, 0.50 V, 0.70 V
+    *==================================================================
+
+    *--- [A] Vgs = 0.30 V ---
+    Quasistationary (
+        InitialStep = 0.01 Increment = 1.3 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.05
+        Goal { Name = "gate" Voltage = 0.30 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+    NewCurrentPrefix = "IdVd_Vg030_"
+    Quasistationary (
+        InitialStep = 0.005 Increment = 1.3 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.02
+        Goal { Name = "drain" Voltage = 0.70 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+    Quasistationary (
+        InitialStep = 0.01 Increment = 1.4 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.05
+        Goal { Name = "drain" Voltage = 0.0 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+    *--- [B] Vgs = 0.50 V ---
+    Quasistationary (
+        InitialStep = 0.01 Increment = 1.3 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.05
+        Goal { Name = "gate" Voltage = 0.50 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+    NewCurrentPrefix = "IdVd_Vg050_"
+    Quasistationary (
+        InitialStep = 0.005 Increment = 1.3 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.02
+        Goal { Name = "drain" Voltage = 0.70 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+    Quasistationary (
+        InitialStep = 0.01 Increment = 1.4 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.05
+        Goal { Name = "drain" Voltage = 0.0 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+    *--- [C] Vgs = 0.70 V ---
+    Quasistationary (
+        InitialStep = 0.01 Increment = 1.3 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.05
+        Goal { Name = "gate" Voltage = 0.70 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+    NewCurrentPrefix = "IdVd_Vg070_"
+    Quasistationary (
+        InitialStep = 0.005 Increment = 1.3 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.02
+        Goal { Name = "drain" Voltage = 0.70 }
+    ) { Coupled ( Iterations = 50 ) { Poisson Electron Hole eQuantumPotential } }
+
+}

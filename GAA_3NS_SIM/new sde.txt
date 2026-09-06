@@ -1,0 +1,205 @@
+;======================================================================
+; 3-STACK ADVANCED NANOSHEET NMOS GAAFET (PRODUCTION SDE SCRIPT)
+; SENTARUS STRUCTURE EDITOR (SDE)
+;
+; Features:
+;   - Multi-channel GAA nanosheet architecture
+;   - Dual gate dielectric: SiO2 IL + HfO2 High-k
+;   - Integrated Inner Spacers (Si3N4 / Low-k)
+;   - Anisotropic Quantum-Confinement Optimized 3D Mesh
+;   - Smooth lateral doping transitions for sdevice convergence
+;======================================================================
+
+;----------------------------------------------------------------------
+; 1. ENVIRONMENT INITIALIZATION
+;----------------------------------------------------------------------
+(sde:clear)
+(sdegeo:set-default-boolean "ABA") ; Overwrite existing overlapping regions
+
+;----------------------------------------------------------------------
+; 2. DEVICE GEOMETRY PARAMETERS (Units: Micrometers)
+;----------------------------------------------------------------------
+(define Lg        0.010)     ; Gate length = 10 nm
+(define Lsp       0.005)     ; Inner spacer length = 5 nm
+(define Ls        0.015)     ; Source length = 15 nm
+(define Ld        0.015)     ; Drain length = 15 nm
+
+(define Wns       0.015)     ; Nanosheet width = 15 nm
+(define Tns       0.004)     ; Nanosheet thickness = 4 nm
+(define Tgap      0.008)     ; Vertical gap (Suspension distance) = 8 nm
+
+(define Til       0.0005)    ; Interfacial SiO2 layer = 0.5 nm
+(define Thk       0.0015)    ; HfO2 high-k dielectric = 1.5 nm
+(define Tox       (+ Til Thk)); Total equivalent gate dielectric thickness
+(define Tgm       0.004)     ; Additional Gate Metal thickness = 4 nm
+
+; Doping Concentrations (cm^-3)
+(define N_sd      1.0e20)    ; Source/Drain Phosphorus (N+)
+(define N_ch      1.0e15)    ; Channel Boron (P- light)
+
+;----------------------------------------------------------------------
+; 3. COORDINATE CALCULATIONS
+;----------------------------------------------------------------------
+; X-coordinates
+(define xS0       (- (+ Ls Lsp)))      ; Source contact edge
+(define xS_sp     (- Lsp))             ; Source inner-spacer edge
+(define xG0       0.000)               ; Gate start
+(define xG1       Lg)                  ; Gate end
+(define xD_sp     (+ Lg Lsp))          ; Drain inner-spacer edge
+(define xD1       (+ Lg Lsp Ld))       ; Drain contact edge
+
+; Y-coordinates (Centered at Y=0)
+(define y0        (- (/ Wns 2.0)))
+(define y1        (/ Wns 2.0))
+
+(define yg0       (- y0 Tox Tgm))
+(define yg1       (+ y1 Tox Tgm))
+
+; Z-coordinates for 3 Sheets
+(define z1b       0.000)
+(define z1t       (+ z1b Tns))
+
+(define z2b       (+ z1t Tgap))
+(define z2t       (+ z2b Tns))
+
+(define z3b       (+ z2t Tgap))
+(define z3t       (+ z3b Tns))
+
+(define zg0       (- z1b Tox Tgm))
+(define zg1       (+ z3t Tox Tgm))
+
+;----------------------------------------------------------------------
+; 4. SILICON NANOSHEET BODY (SOURCE - CHANNEL - DRAIN)
+;----------------------------------------------------------------------
+; Create continuous silicon sheets across X
+; Sheet 1
+(sdegeo:create-cuboid (position xS0 y0 z1b) (position xD1 y1 z1t) "Silicon" "R.Silicon1")
+; Sheet 2
+(sdegeo:create-cuboid (position xS0 y0 z2b) (position xD1 y1 z2t) "Silicon" "R.Silicon2")
+; Sheet 3
+(sdegeo:create-cuboid (position xS0 y0 z3b) (position xD1 y1 z3t) "Silicon" "R.Silicon3")
+
+;----------------------------------------------------------------------
+; 5. INNER SPACER REGIONS (Si3N4 Isolation between Sheets outside Gate)
+;----------------------------------------------------------------------
+; Source-side Inner Spacers
+(sdegeo:create-cuboid (position xS_sp y0 z1t) (position xG0 y1 z2b) "SiliconNitride" "R.SpacerS1")
+(sdegeo:create-cuboid (position xS_sp y0 z2t) (position xG0 y1 z3b) "SiliconNitride" "R.SpacerS2")
+
+; Drain-side Inner Spacers
+(sdegeo:create-cuboid (position xG1 y0 z1t) (position xD_sp y1 z2b) "SiliconNitride" "R.SpacerD1")
+(sdegeo:create-cuboid (position xG1 y0 z2t) (position xD_sp y1 z3b) "SiliconNitride" "R.SpacerD2")
+
+;----------------------------------------------------------------------
+; 6. GATE STACK FORMATION (Self-Aligned High-k & Metal)
+;----------------------------------------------------------------------
+; 6.1 Outer Gate Metal Block
+(sdegeo:create-cuboid (position xG0 yg0 zg0) (position xG1 yg1 zg1) "TiN" "R.GateMetal")
+
+; 6.2 High-k HfO2 Dielectric Shells
+(sdegeo:create-cuboid (position xG0 (- y0 Tox) (- z1b Tox)) 
+                      (position xG1 (+ y1 Tox) (+ z1t Tox)) "HfO2" "R.HfO2_1")
+(sdegeo:create-cuboid (position xG0 (- y0 Tox) (- z2b Tox)) 
+                      (position xG1 (+ y1 Tox) (+ z2t Tox)) "HfO2" "R.HfO2_2")
+(sdegeo:create-cuboid (position xG0 (- y0 Tox) (- z3b Tox)) 
+                      (position xG1 (+ y1 Tox) (+ z3t Tox)) "HfO2" "R.HfO2_3")
+
+; 6.3 Interfacial Oxide (SiO2) Shells
+(sdegeo:create-cuboid (position xG0 (- y0 Til) (- z1b Til)) 
+                      (position xG1 (+ y1 Til) (+ z1t Til)) "Oxide" "R.IL_1")
+(sdegeo:create-cuboid (position xG0 (- y0 Til) (- z2b Til)) 
+                      (position xG1 (+ y1 Til) (+ z2t Til)) "Oxide" "R.IL_2")
+(sdegeo:create-cuboid (position xG0 (- y0 Til) (- z3b Til)) 
+                      (position xG1 (+ y1 Til) (+ z3t Til)) "Oxide" "R.IL_3")
+
+; 6.4 Re-instantiate Channel Silicon Cores (Carves out inside of dielectrics)
+(sdegeo:create-cuboid (position xG0 y0 z1b) (position xG1 y1 z1t) "Silicon" "R.Channel1")
+(sdegeo:create-cuboid (position xG0 y0 z2b) (position xG1 y1 z2t) "Silicon" "R.Channel2")
+(sdegeo:create-cuboid (position xG0 y0 z3b) (position xG1 y1 z3t) "Silicon" "R.Channel3")
+
+;----------------------------------------------------------------------
+; 7. DOPING PROFILES
+;----------------------------------------------------------------------
+; Base Channel Doping (Uniform P-type Boron)
+(sdedr:define-constant-profile "DopDef.Channel" "BoronActiveConcentration" N_ch)
+(sdedr:define-constant-profile-placement "DopPlace.Channel" "DopDef.Channel" 
+    (list "R.Channel1" "R.Channel2" "R.Channel3"))
+
+; Source / Drain N+ Doping with smooth lateral Gaussian straggle
+(sdedr:define-analytical-profile-placement "DopPlace.Source"
+    "DopDef.Source"
+    "Cuboid"
+    (position xS0 y0 zg0)
+    (position xS_sp y1 zg1)
+    "Negative"
+    "Erf"
+    0.002
+)
+(sdedr:define-constant-profile "DopDef.Source" "PhosphorusActiveConcentration" N_sd)
+(sdedr:define-constant-profile-region "DopPlace.SourceLead1" "DopDef.Source" "R.Silicon1")
+(sdedr:define-constant-profile-region "DopPlace.SourceLead2" "DopDef.Source" "R.Silicon2")
+(sdedr:define-constant-profile-region "DopPlace.SourceLead3" "DopDef.Source" "R.Silicon3")
+
+;----------------------------------------------------------------------
+; 8. CONTACT DEFINITIONS
+;----------------------------------------------------------------------
+(sdegeo:define-contact-set "source" 4.0 (color:rgb 1 0 0) "##")
+(sdegeo:define-contact-set "drain"  4.0 (color:rgb 0 0 1) "##")
+(sdegeo:define-contact-set "gate"   4.0 (color:rgb 0 1 0) "##")
+
+; Source Contact (Exposed faces at xS0)
+(sdegeo:set-current-contact-set "source")
+(sdegeo:set-contact (find-face-id (position xS0 0.0 (/ (+ z1b z1t) 2.0))) "source")
+(sdegeo:set-contact (find-face-id (position xS0 0.0 (/ (+ z2b z2t) 2.0))) "source")
+(sdegeo:set-contact (find-face-id (position xS0 0.0 (/ (+ z3b z3t) 2.0))) "source")
+
+; Drain Contact (Exposed faces at xD1)
+(sdegeo:set-current-contact-set "drain")
+(sdegeo:set-contact (find-face-id (position xD1 0.0 (/ (+ z1b z1t) 2.0))) "drain")
+(sdegeo:set-contact (find-face-id (position xD1 0.0 (/ (+ z2b z2t) 2.0))) "drain")
+(sdegeo:set-contact (find-face-id (position xD1 0.0 (/ (+ z3b z3t) 2.0))) "drain")
+
+; Gate Contact (Top Gate Metal Surface)
+(sdegeo:set-current-contact-set "gate")
+(sdegeo:set-contact (find-face-id (position (/ (+ xG0 xG1) 2.0) 0.0 zg1)) "gate")
+
+;----------------------------------------------------------------------
+; 9. ADVANCED 3D MESH REFINEMENT STRATEGY
+;----------------------------------------------------------------------
+; 9.1 Global Background Mesh
+(sdedr:define-refeval-window "RefWin.Global" "Cuboid"
+    (position xS0 yg0 zg0)
+    (position xD1 yg1 zg1))
+
+(sdedr:define-refinement-size "RefDef.Global"
+    0.005 0.005 0.004   ; Max X, Y, Z (5 nm, 5 nm, 4 nm)
+    0.002 0.002 0.001)  ; Min X, Y, Z (2 nm, 2 nm, 1 nm)
+
+(sdedr:define-refinement-placement "RefPlace.Global" "RefDef.Global" "RefWin.Global")
+
+; 9.2 Channel & Confinement Mesh (Sub-nanometer in Z for Quantum Models)
+(sdedr:define-refeval-window "RefWin.Channel" "Cuboid"
+    (position (- xG0 0.002) (- y0 Tox 0.001) (- z1b Tox 0.001))
+    (position (+ xG1 0.002) (+ y1 Tox 0.001) (+ z3t Tox 0.001)))
+
+(sdedr:define-refinement-size "RefDef.Channel"
+    0.001 0.0015 0.0005  ; Max (X=1nm, Y=1.5nm, Z=0.5nm)
+    0.0005 0.0005 0.0002); Min (X=0.5nm, Y=0.5nm, Z=0.2nm)
+
+(sdedr:define-refinement-placement "RefPlace.Channel" "RefDef.Channel" "RefWin.Channel")
+
+; 9.3 Silicon / Dielectric Interface Mesh Refinement
+(sdedr:define-refinement-function "RefDef.Channel" "MaxLenInt"
+    "Silicon" "Oxide" 0.0003 1.5 "DoubleSide")
+
+(sdedr:define-refinement-function "RefDef.Channel" "MaxLenInt"
+    "Silicon" "HfO2"  0.0003 1.5 "DoubleSide")
+
+; 9.4 Doping-Gradient Refinement
+(sdedr:define-refinement-function "RefDef.Channel" "MaxTransDiff"
+    "DopingConcentration" 1.0)
+
+;----------------------------------------------------------------------
+; 10. BUILD MESH & EXPORT
+;----------------------------------------------------------------------
+(sde:build-mesh "snmesh" "-a" "GAAFET_3Sheet_NMOS")

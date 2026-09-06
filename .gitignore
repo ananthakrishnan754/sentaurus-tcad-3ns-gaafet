@@ -4,7 +4,16 @@
 *.scm.bak
 __pycache__/
 *.tmp
+*.err
 
-# Large PDF files / personal images if unwanted (keep source code, markdown, and scripts)
+# Large archive files (GitHub file size limit is 100MB)
+*.zip
+*.tar.gz
+
+# Ignore binary simulation meshes in experiment runs
+experiments/**/*.tdr
+results/**/*.tdr
+
+# Large personal images / office docs
 *.jpeg
 *.docx
