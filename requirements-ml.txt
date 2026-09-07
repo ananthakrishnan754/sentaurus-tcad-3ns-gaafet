@@ -1,0 +1,10 @@
+# =============================================================================
+# GAAFET Machine Learning Surrogates & Optimization (Phase 2 & Phase 3)
+# Install with: pip install -r requirements-ml.txt
+# =============================================================================
+
+scikit-learn
+scipy
+torch
+reportlab
+pymupdf

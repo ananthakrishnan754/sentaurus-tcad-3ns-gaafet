@@ -1,21 +1,12 @@
 # =============================================================================
-# GAAFET TCAD & Machine Learning Project Dependencies
+# GAAFET TCAD Simulation & Extraction Dependencies
+# Compatible with Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13
 # Install with: pip install -r requirements.txt
 # =============================================================================
 
 # Core Numerical & Data Processing (Required for TCAD Extraction)
-numpy>=1.22.0
-pandas>=1.4.0
+numpy
+pandas
 
-# Plotting & Visualization (Required for automated 300 DPI trend curves)
-# Note: If not installed, extraction will still save the CSV dataset successfully.
-matplotlib>=3.5.0
-
-# Machine Learning Surrogates & Optimization (Phase 2 & Phase 3)
-scikit-learn>=1.0.0
-scipy>=1.8.0
-torch>=2.0.0
-
-# Optional: Document & PDF Report Compilation
-reportlab>=3.6.0
-pymupdf>=1.23.0
+# Plotting & Visualization (Optional - if missing, extraction will still save CSV)
+matplotlib

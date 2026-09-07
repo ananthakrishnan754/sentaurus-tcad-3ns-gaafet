@@ -17,3 +17,6 @@ results/**/*.tdr
 # Large personal images / office docs
 *.jpeg
 *.docx
+
+# Standalone nested repositories
+PN_JUNCTION_TCAD/
