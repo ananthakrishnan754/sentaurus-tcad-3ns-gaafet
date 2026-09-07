@@ -27,9 +27,13 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
 
 # Default Physical & Geometric Constants
 DEFAULT_WNS_UM = 0.0150
@@ -621,39 +625,42 @@ def main():
 
         # Generate Trend Curves if multiple points
         if len(df) >= 2 and args.mode == "lg_sweep":
-            plot_path = os.path.join(args.out_dir, "lg_sensitivity_trends.png")
-            fig, axes = plt.subplots(2, 2, figsize=(11, 9), dpi=300)
-            fig.suptitle("3-Stack GAAFET NMOS: Gate Length Sensitivity Trends", fontsize=14, fontweight='bold')
+            if HAS_MATPLOTLIB:
+                plot_path = os.path.join(args.out_dir, "lg_sensitivity_trends.png")
+                fig, axes = plt.subplots(2, 2, figsize=(11, 9), dpi=300)
+                fig.suptitle("3-Stack GAAFET NMOS: Gate Length Sensitivity Trends", fontsize=14, fontweight='bold')
 
-            axes[0, 0].plot(df['Lg_nm'], df['SS_mVdec'], 'ro-', linewidth=2, markersize=7)
-            axes[0, 0].set_title("Subthreshold Swing (SS) vs Lg", fontweight='bold')
-            axes[0, 0].set_xlabel("Gate Length Lg (nm)")
-            axes[0, 0].set_ylabel("SS (mV/dec)")
-            axes[0, 0].grid(True, linestyle="--", alpha=0.6)
+                axes[0, 0].plot(df['Lg_nm'], df['SS_mVdec'], 'ro-', linewidth=2, markersize=7)
+                axes[0, 0].set_title("Subthreshold Swing (SS) vs Lg", fontweight='bold')
+                axes[0, 0].set_xlabel("Gate Length Lg (nm)")
+                axes[0, 0].set_ylabel("SS (mV/dec)")
+                axes[0, 0].grid(True, linestyle="--", alpha=0.6)
 
-            axes[0, 1].plot(df['Lg_nm'], df['DIBL_mV_V'], 'bs-', linewidth=2, markersize=7)
-            axes[0, 1].set_title("DIBL vs Lg", fontweight='bold')
-            axes[0, 1].set_xlabel("Gate Length Lg (nm)")
-            axes[0, 1].set_ylabel("DIBL (mV/V)")
-            axes[0, 1].grid(True, linestyle="--", alpha=0.6)
+                axes[0, 1].plot(df['Lg_nm'], df['DIBL_mV_V'], 'bs-', linewidth=2, markersize=7)
+                axes[0, 1].set_title("DIBL vs Lg", fontweight='bold')
+                axes[0, 1].set_xlabel("Gate Length Lg (nm)")
+                axes[0, 1].set_ylabel("DIBL (mV/V)")
+                axes[0, 1].grid(True, linestyle="--", alpha=0.6)
 
-            axes[1, 0].plot(df['Lg_nm'], df['Ion_mA_um'], 'g^-', linewidth=2, markersize=7)
-            axes[1, 0].set_title("Drive Current (Ion) vs Lg", fontweight='bold')
-            axes[1, 0].set_xlabel("Gate Length Lg (nm)")
-            axes[1, 0].set_ylabel("Ion (mA/um)")
-            axes[1, 0].grid(True, linestyle="--", alpha=0.6)
+                axes[1, 0].plot(df['Lg_nm'], df['Ion_mA_um'], 'g^-', linewidth=2, markersize=7)
+                axes[1, 0].set_title("Drive Current (Ion) vs Lg", fontweight='bold')
+                axes[1, 0].set_xlabel("Gate Length Lg (nm)")
+                axes[1, 0].set_ylabel("Ion (mA/um)")
+                axes[1, 0].grid(True, linestyle="--", alpha=0.6)
 
-            axes[1, 1].plot(df['Lg_nm'], df['Vth_sat_V'], 'md-', linewidth=2, markersize=7, label="Vth,sat")
-            axes[1, 1].plot(df['Lg_nm'], df['Vth_lin_V'], 'co--', linewidth=2, markersize=7, label="Vth,lin")
-            axes[1, 1].set_title("Threshold Voltage vs Lg", fontweight='bold')
-            axes[1, 1].set_xlabel("Gate Length Lg (nm)")
-            axes[1, 1].set_ylabel("Vth (V)")
-            axes[1, 1].legend()
-            axes[1, 1].grid(True, linestyle="--", alpha=0.6)
+                axes[1, 1].plot(df['Lg_nm'], df['Vth_sat_V'], 'md-', linewidth=2, markersize=7, label="Vth,sat")
+                axes[1, 1].plot(df['Lg_nm'], df['Vth_lin_V'], 'co--', linewidth=2, markersize=7, label="Vth,lin")
+                axes[1, 1].set_title("Threshold Voltage vs Lg", fontweight='bold')
+                axes[1, 1].set_xlabel("Gate Length Lg (nm)")
+                axes[1, 1].set_ylabel("Vth (V)")
+                axes[1, 1].legend()
+                axes[1, 1].grid(True, linestyle="--", alpha=0.6)
 
-            plt.tight_layout()
-            plt.savefig(plot_path)
-            print(f"Saved publication-quality trend plot: {plot_path}")
+                plt.tight_layout()
+                plt.savefig(plot_path)
+                print(f"Saved publication-quality trend plot: {plot_path}")
+            else:
+                print("[NOTICE] matplotlib is not installed: skipped plot generation. Master CSV dataset saved successfully.")
 
     print("\nPipeline execution complete.")
 
