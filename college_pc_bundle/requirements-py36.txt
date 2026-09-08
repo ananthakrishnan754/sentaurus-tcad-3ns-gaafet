@@ -1,0 +1,15 @@
+# =============================================================================
+# GAAFET TCAD Simulation & Extraction Dependencies
+# PINNED FOR PYTHON 3.6 ONLY (College PC)
+#
+# Why pinned: numpy/pandas/matplotlib dropped Python 3.6 support long ago.
+# The latest releases require Python 3.7+ / 3.9+, so an unpinned
+# "pip install numpy" on Python 3.6 will FAIL to resolve.
+# These are the newest versions that still run on Python 3.6.
+#
+# Install with:  pip install -r requirements-py36.txt
+# =============================================================================
+
+numpy==1.19.5
+pandas==1.1.5
+matplotlib==3.3.4
