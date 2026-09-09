@@ -1,17 +1,17 @@
 #!/bin/bash
 #=============================================================================
 # run_college_pc.sh
-# One-click launcher for the College PC (bare-metal Linux / multi-core)
+# One-click optimized launcher for the College PC (bare-metal Linux / multi-core)
 #=============================================================================
 
 echo "================================================================"
-echo "    GAAFET Automated TCAD Simulation & PPA Pipeline             "
-echo "    College PC Multi-Threaded Execution Runner                  "
+echo "    GAAFET Automated TCAD Simulation & PPA Pipeline (Optimized)  "
+echo "    College PC Execution Runner                                 "
 echo "================================================================"
 
 # 1. Source Sentaurus Environment (if needed)
 if command -v sdevice &>/dev/null; then
-    echo "[OK] Sentaurus binaries detected in PATH."
+    echo "[OK] Sentaurus binaries detected in PATH: $(which sdevice)"
 elif [ -f "/opt/synopsys/sentaurus/tcad/R-2022.09/env.sh" ]; then
     echo "[INFO] Sourcing /opt/synopsys/sentaurus/tcad/R-2022.09/env.sh"
     source /opt/synopsys/sentaurus/tcad/R-2022.09/env.sh
@@ -22,15 +22,24 @@ else
     echo "[WARNING] sdevice not found in default paths. Ensure TCAD environment is loaded."
 fi
 
-# Detect CPU cores for parallel jobs (default to 4)
+# Detect CPU cores: set safe parallel job count (default 2 on 8-core machines to prevent memory bus contention)
 NUM_CORES=$(nproc 2>/dev/null || echo 4)
-JOBS=$(( NUM_CORES > 4 ? 4 : NUM_CORES ))
+if [ "$NUM_CORES" -ge 8 ]; then
+    DEFAULT_JOBS=2
+else
+    DEFAULT_JOBS=1
+fi
 
-echo "[INFO] Running 6-point Lg sensitivity sweep across $JOBS parallel workers..."
-python3 gaafet_tcad_runner.py --mode lg_sweep --jobs "$JOBS" --out-dir ./results
+echo "[INFO] Detected $NUM_CORES CPU cores. Defaulting to $DEFAULT_JOBS parallel worker(s), 4 threads per SDevice."
+if [ $# -gt 0 ]; then
+    echo "[INFO] Forwarding user options: $@"
+fi
+
+# Run the optimized master pipeline with resume enabled by default
+python3 gaafet_tcad_runner.py --mode lg_sweep --jobs "$DEFAULT_JOBS" --threads 4 --out-dir ./results --resume "$@"
 
 echo "================================================================"
-echo "Simulation sweep complete!"
+echo "Simulation sweep session complete!"
 echo "Master dataset: ./results/gaafet_tcad_master_dataset.csv"
 echo "Trend plots:    ./results/lg_sensitivity_trends.png"
 echo "================================================================"
