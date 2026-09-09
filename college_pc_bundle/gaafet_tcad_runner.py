@@ -525,29 +525,33 @@ def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False):
 
     log_file = os.path.join(run_dir, "run_console.log")
 
-    with open(log_file, "a") as out:
-        out.write(f"\n--- Simulation Session: {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+    try:
+        with open(log_file, "a") as out:
+            out.write(f"\n--- Simulation Session: {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
 
-        # 1. Run SDE (Skip if valid mesh already exists)
-        msh_file = os.path.join(run_dir, f"{run_name}_msh.tdr")
-        if os.path.exists(msh_file) and os.path.getsize(msh_file) > 10000:
-            out.write(f"[{run_name}] Step 1: Valid mesh already exists ({os.path.getsize(msh_file)} bytes). Skipping SDE.\n")
-            out.flush()
-        else:
-            out.write(f"[{run_name}] Step 1: Running SDE...\n")
-            out.flush()
-            cmd_sde = [sde_bin, "-e", "-l", f"{run_name}_sde.scm"]
-            res_sde = subprocess.run(cmd_sde, cwd=run_dir, stdout=out, stderr=subprocess.STDOUT)
-            if res_sde.returncode != 0:
-                return {"run_name": run_name, "status": "FAIL_SDE"}
+            # 1. Run SDE (Skip if valid mesh already exists)
+            msh_file = os.path.join(run_dir, f"{run_name}_msh.tdr")
+            if os.path.exists(msh_file) and os.path.getsize(msh_file) > 10000:
+                out.write(f"[{run_name}] Step 1: Valid mesh already exists ({os.path.getsize(msh_file)} bytes). Skipping SDE.\n")
+                out.flush()
+            else:
+                out.write(f"[{run_name}] Step 1: Running SDE...\n")
+                out.flush()
+                cmd_sde = [sde_bin, "-e", "-l", f"{run_name}_sde.scm"]
+                res_sde = subprocess.run(cmd_sde, cwd=run_dir, stdout=out, stderr=subprocess.STDOUT)
+                if res_sde.returncode != 0:
+                    return {"run_name": run_name, "status": "FAIL_SDE"}
 
-        # 2. Run SDevice with optimized sequence
-        out.write(f"[{run_name}] Step 2: Running SDevice (Optimized sequence, {threads} threads)...\n")
-        out.flush()
-        cmd_sdev = [sdev_bin, f"{run_name}_sdevice.cmd"]
-        res_sdev = subprocess.run(cmd_sdev, cwd=run_dir, stdout=out, stderr=subprocess.STDOUT)
-        if res_sdev.returncode != 0:
-            return {"run_name": run_name, "status": "FAIL_SDEVICE"}
+            # 2. Run SDevice with optimized sequence
+            out.write(f"[{run_name}] Step 2: Running SDevice (Optimized sequence, {threads} threads)...\n")
+            out.flush()
+            cmd_sdev = [sdev_bin, f"{run_name}_sdevice.cmd"]
+            res_sdev = subprocess.run(cmd_sdev, cwd=run_dir, stdout=out, stderr=subprocess.STDOUT)
+            if res_sdev.returncode != 0:
+                return {"run_name": run_name, "status": "FAIL_SDEVICE"}
+    except Exception as exc:
+        print(f"[{run_name}] Execution error: {exc}")
+        return {"run_name": run_name, "status": f"ERROR_{type(exc).__name__}"}
 
     # 3. Extract FOM
     fom = extract_device_fom(run_dir, run_name, lg, wns, tns)
@@ -580,7 +584,19 @@ def main():
     tasks = []
     if args.mode == "lg_sweep":
         if args.devices:
-            lg_vals = [int(x.strip().replace("L", "").replace("G_", "")) for x in args.devices.split(",") if x.strip()]
+            parsed_lg = []
+            for item in args.devices.split(","):
+                item = item.strip()
+                if not item:
+                    continue
+                m = re.search(r"L(\d+)", item)
+                if m:
+                    parsed_lg.append(int(m.group(1)))
+                else:
+                    m_num = re.search(r"(\d+)", item)
+                    if m_num:
+                        parsed_lg.append(int(m_num.group(1)))
+            lg_vals = parsed_lg if parsed_lg else [10, 12, 14, 16, 18, 20]
         else:
             lg_vals = [10, 12, 14, 16, 18, 20]
 
@@ -633,14 +649,13 @@ def main():
 
         print(f"Using TCAD binaries at: {tcad_bin if tcad_bin else 'System PATH'}")
 
-        # Worker wrapper
-        def worker(t):
-            return run_single_simulation(t, tcad_bin, threads=args.threads, force=args.force)
-
         if args.jobs > 1:
             print(f"\nLaunching {len(tasks)} runs across {args.jobs} parallel workers...")
             with ProcessPoolExecutor(max_workers=args.jobs) as executor:
-                futures = {executor.submit(worker, t): t for t in tasks}
+                futures = {
+                    executor.submit(run_single_simulation, t, tcad_bin, args.threads, args.force): t
+                    for t in tasks
+                }
                 for f in as_completed(futures):
                     res = f.result()
                     print(f"Device [{res['run_name']}] Finished -> Status: {res['status']}")
@@ -650,7 +665,7 @@ def main():
             print(f"\nLaunching {len(tasks)} runs sequentially...")
             for t in tasks:
                 print(f"Starting simulation: {t['run_name']} (Lg={t['Lg_nm']}nm)...")
-                res = worker(t)
+                res = run_single_simulation(t, tcad_bin, threads=args.threads, force=args.force)
                 print(f"Device [{res['run_name']}] Status: {res['status']}")
                 if res["status"] == "SUCCESS":
                     records.append(res["fom"])

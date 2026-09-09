@@ -15,6 +15,9 @@ if command -v sdevice &>/dev/null; then
 elif [ -f "/opt/synopsys/sentaurus/tcad/R-2022.09/env.sh" ]; then
     echo "[INFO] Sourcing /opt/synopsys/sentaurus/tcad/R-2022.09/env.sh"
     source /opt/synopsys/sentaurus/tcad/R-2022.09/env.sh
+elif [ -f "/home/amrita/setup/sentaurus/sentaurus/T-2022.03-SP2/bin/sdevice" ]; then
+    export PATH="/home/amrita/setup/sentaurus/sentaurus/T-2022.03-SP2/bin:$PATH"
+    echo "[INFO] Added /home/amrita/setup/sentaurus/sentaurus/T-2022.03-SP2/bin to PATH."
 elif [ -f "/home/eda/sentaurus-2017.09/sentaurus/N_2017.09/bin/sdevice" ]; then
     export PATH="/home/eda/sentaurus-2017.09/sentaurus/N_2017.09/bin:$PATH"
     echo "[INFO] Added /home/eda/sentaurus-2017.09 to PATH."
