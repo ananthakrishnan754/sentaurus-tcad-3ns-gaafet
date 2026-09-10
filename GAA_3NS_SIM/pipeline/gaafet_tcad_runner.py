@@ -205,7 +205,7 @@ def generate_sde_deck(run_name, lg_nm, wns_nm, tns_nm, nsheet=3):
 # ---------------------------------------------------------------------------
 # SDevice Command Deck Generator (Optimized Adaptive Stepping)
 # ---------------------------------------------------------------------------
-def generate_sdevice_deck(run_name, workfunction=4.40, threads=4):
+def generate_sdevice_deck(run_name, workfunction=4.58, threads=4):
     """
     Generates an optimized SDevice simulation deck.
     Key Enhancements:
@@ -484,7 +484,7 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
 # ---------------------------------------------------------------------------
 # Worker Task: Run Single TCAD Simulation
 # ---------------------------------------------------------------------------
-def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False):
+def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False, workfunction=4.58):
     run_name = task_info["run_name"]
     run_dir = task_info["run_dir"]
     lg = task_info["Lg_nm"]
@@ -518,7 +518,7 @@ def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False):
 
     # Always update sdevice deck with optimized settings if force or not completed
     with open(sdev_path, "w") as f:
-        f.write(generate_sdevice_deck(run_name, threads=threads))
+        f.write(generate_sdevice_deck(run_name, workfunction=workfunction, threads=threads))
 
     sde_bin = os.path.join(tcad_bin_path, "sde") if tcad_bin_path else "sde"
     sdev_bin = os.path.join(tcad_bin_path, "sdevice") if tcad_bin_path else "sdevice"
@@ -576,6 +576,8 @@ def main():
     parser.add_argument("--out-dir", type=str, default="./results")
     parser.add_argument("--extract-only", action="store_true", help="Only run FOM extraction on existing simulation folders")
     parser.add_argument("--resume", action="store_true", help="Skip any devices that have already completed full sweeps")
+    parser.add_argument("--workfunction", type=float, default=4.58, help="Gate work function in eV (default: 4.58 for Tungsten/TiN)")
+    parser.add_argument("--calibrate-wf", type=float, default=None, help="Calibrate extracted Vth and Ioff to target workfunction (e.g. 4.58 for Tungsten)")
     parser.add_argument("--force", action="store_true", help="Force re-run even if outputs exist")
 
     args = parser.parse_args()
@@ -619,6 +621,7 @@ def main():
     print(f"Mode              : {args.mode}")
     print(f"Target Geometries : {[t['run_name'] for t in tasks]}")
     print(f"Total Geometries  : {len(tasks)}")
+    print(f"Gate Workfunction : {args.workfunction} eV (Tungsten/TiN)")
     print(f"Parallel Jobs     : {args.jobs}")
     print(f"SDevice Threads   : {args.threads}")
     print(f"Output Directory  : {args.out_dir}")
@@ -634,8 +637,19 @@ def main():
         for t in tasks:
             fom = extract_device_fom(t["run_dir"], t["run_name"], t["Lg_nm"], t["Wns_nm"], t["Tns_nm"])
             if fom:
+                if args.calibrate_wf is not None:
+                    dwf = args.calibrate_wf - 4.40
+                    fom["Vth_lin_V"] = round(fom["Vth_lin_V"] + dwf, 4)
+                    if fom.get("Vth_sat_V") is not None:
+                        fom["Vth_sat_V"] = round(fom["Vth_sat_V"] + dwf, 4)
+                    ss_val = fom.get("SS_mVdec", 66.0)
+                    decay = 10.0 ** (-(dwf * 1000.0) / ss_val)
+                    fom["Ioff_pA_um"] = round(fom["Ioff_pA_um"] * decay, 3)
+                    fom["logIoff"] = round(float(np.log10(fom["Ioff_pA_um"])), 3) if fom["Ioff_pA_um"] > 0 else 0.0
+                    fom["Pleak_pW_um"] = round(fom["Ioff_pA_um"] * 0.70, 3)
+                    fom["calibrated_wf_eV"] = args.calibrate_wf
                 records.append(fom)
-                print(f"Extracted [{fom['convergence_flag']}]: {t['run_name']}")
+                print(f"Extracted [{fom['convergence_flag']}]: {t['run_name']} (Vth={fom.get('Vth_lin_V')}V)")
     else:
         # Detect TCAD bin path
         tcad_bin = args.tcad_bin
@@ -653,7 +667,7 @@ def main():
             print(f"\nLaunching {len(tasks)} runs across {args.jobs} parallel workers...")
             with ProcessPoolExecutor(max_workers=args.jobs) as executor:
                 futures = {
-                    executor.submit(run_single_simulation, t, tcad_bin, args.threads, args.force): t
+                    executor.submit(run_single_simulation, t, tcad_bin, args.threads, args.force, args.workfunction): t
                     for t in tasks
                 }
                 for f in as_completed(futures):
@@ -665,7 +679,7 @@ def main():
             print(f"\nLaunching {len(tasks)} runs sequentially...")
             for t in tasks:
                 print(f"Starting simulation: {t['run_name']} (Lg={t['Lg_nm']}nm)...")
-                res = run_single_simulation(t, tcad_bin, threads=args.threads, force=args.force)
+                res = run_single_simulation(t, tcad_bin, threads=args.threads, force=args.force, workfunction=args.workfunction)
                 print(f"Device [{res['run_name']}] Status: {res['status']}")
                 if res["status"] == "SUCCESS":
                     records.append(res["fom"])
