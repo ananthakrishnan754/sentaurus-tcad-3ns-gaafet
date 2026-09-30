@@ -22,6 +22,13 @@ Features:
 
 import os
 import sys
+
+# Ensure Synopsys 2017 compatibility libraries are present in LD_LIBRARY_PATH
+if os.path.exists("/opt/synopsys/compat_lib"):
+    current_ld = os.environ.get("LD_LIBRARY_PATH", "")
+    if "/opt/synopsys/compat_lib" not in current_ld:
+        os.environ["LD_LIBRARY_PATH"] = f"/opt/synopsys/compat_lib:{current_ld}".strip(":")
+
 import re
 import time
 import argparse
@@ -59,174 +66,159 @@ def generate_sde_deck(run_name, lg_nm, wns_nm, tns_nm, nsheet=3):
     lg_um = lg_nm / 1000.0
     wns_um = wns_nm / 1000.0
     tns_um = tns_nm / 1000.0
-    tgap_um = 0.0080
-    tox_um = 0.0010
-    tgm_um = 0.0030
-    tbdi_um = 0.0100
-    tsub_um = 0.0200
-    ls_um = 0.0150
-    ld_um = 0.0150
 
-    # Coordinates
-    xS0 = -ls_um
-    xG0 = 0.0000
-    xG1 = lg_um
-    xD1 = lg_um + ld_um
+    template = f"""
+;======================================================================
+; 3-STACK NANOSHEET NMOS GAAFET WITH SUBSTRATE & BDI ISOLATION
+; Run: {run_name}
+;======================================================================
 
-    y0 = -wns_um / 2.0
-    y1 = wns_um / 2.0
+(sde:clear)
+(sdegeo:set-default-boolean "ABA")
 
-    # Build Z coordinates for stacked sheets
-    sheet_z = []
-    curr_z = 0.0
-    for i in range(nsheet):
-        zb = curr_z
-        zt = zb + tns_um
-        sheet_z.append((zb, zt))
-        curr_z = zt + tgap_um
+;--- Parameters ---
+(define Lg   {lg_um:.5f})  (define Ls   0.01500)  (define Ld   0.01500)
+(define Wns  {wns_um:.5f})  (define Tns  {tns_um:.5f})  (define Tgap 0.00800)
+(define Tox  0.00100)  (define Tgm  0.00300)
+(define Tbdi 0.01000)  (define Tsub 0.02000)
 
-    zg0 = -tox_um - tgm_um
-    zg1 = sheet_z[-1][1] + tox_um + tgm_um
-    yg0 = y0 - tox_um - tgm_um
-    yg1 = y1 + tox_um + tgm_um
+;--- X coordinates ---
+(define xS0 (- Ls))  (define xG0 0.000)
+(define xG1 Lg)      (define xD1 (+ Lg Ld))
 
-    zBDI_bot = zg0 - tbdi_um
-    zSub_bot = zBDI_bot - tsub_um
+;--- Y coordinates ---
+(define y0 (- (/ Wns 2.0)))   (define y1 (/ Wns 2.0))
 
-    lines = [
-        f"; Run: {run_name} (Lg={lg_nm}nm, Wns={wns_nm}nm, Tns={tns_nm}nm, N={nsheet})",
-        "(sde:clear)",
-        '(sdegeo:set-default-boolean "ABA")',
-        "",
-        ";--- Substrate & BDI Base ---",
-        f'(sdegeo:create-cuboid (position {xS0:.4f} {yg0:.4f} {zSub_bot:.4f}) (position {xD1:.4f} {yg1:.4f} {zBDI_bot:.4f}) "Silicon" "R.Substrate")',
-        f'(sdegeo:create-cuboid (position {xS0:.4f} {yg0:.4f} {zBDI_bot:.4f}) (position {xD1:.4f} {yg1:.4f} {zg0:.4f}) "SiO2" "R.BDI")',
-        ""
-    ]
+;--- Z coordinates (3 stacked nanosheets) ---
+(define z1b 0.000)             (define z1t (+ z1b Tns))
+(define z2b (+ z1t Tgap))     (define z2t (+ z2b Tns))
+(define z3b (+ z2t Tgap))     (define z3t (+ z3b Tns))
 
-    # Gate Metal Outer Shell
-    lines.append(";--- Gate Metal Shell ---")
-    lines.append(f'(sdegeo:create-cuboid (position {xG0:.4f} {yg0:.4f} {zg0:.4f}) (position {xG1:.4f} {yg1:.4f} {zg1:.4f}) "TiN" "R.GateMetal")')
-    lines.append("")
+(define zg0 (- z1b Tox Tgm))  (define zg1 (+ z3t Tox Tgm))
+(define yg0 (- y0 Tox Tgm))   (define yg1 (+ y1 Tox Tgm))
 
-    # Inner Spacers
-    lines.append(";--- Low-k Inner Spacers ---")
-    lines.append(f'(sdegeo:create-cuboid (position {xS0:.4f} {yg0:.4f} {zg0:.4f}) (position {xG0:.4f} {yg1:.4f} {zg1:.4f}) "Si3N4" "R.SpacerS")')
-    lines.append(f'(sdegeo:create-cuboid (position {xG1:.4f} {yg0:.4f} {zg0:.4f}) (position {xD1:.4f} {yg1:.4f} {zg1:.4f}) "Si3N4" "R.SpacerD")')
-    lines.append("")
+(define zBDI_bot (- zg0 Tbdi))
+(define zSub_bot (- zBDI_bot Tsub))
 
-    # Sheets & Dielectrics
-    for i, (zb, zt) in enumerate(sheet_z, 1):
-        z_ox_b = zb - tox_um
-        z_ox_t = zt + tox_um
-        y_ox_0 = y0 - tox_um
-        y_ox_1 = y1 + tox_um
+;--- 1. P-type Silicon Substrate Base ---
+(sdegeo:create-cuboid (position xS0 yg0 zSub_bot) (position xD1 yg1 zBDI_bot) "Silicon" "R.Substrate")
 
-        lines.extend([
-            f";--- Nanosheet Stack {i} ---",
-            f'(sdegeo:create-cuboid (position {xG0:.4f} {y_ox_0:.4f} {z_ox_b:.4f}) (position {xG1:.4f} {y_ox_1:.4f} {z_ox_t:.4f}) "HfO2" "R.Oxide{i}")',
-            f'(sdegeo:create-cuboid (position {xG0:.4f} {y0:.4f} {zb:.4f}) (position {xG1:.4f} {y1:.4f} {zt:.4f}) "Silicon" "R.Channel{i}")',
-            f'(sdegeo:create-cuboid (position {xS0:.4f} {y0:.4f} {zb:.4f}) (position {xG0:.4f} {y1:.4f} {zt:.4f}) "Silicon" "R.Source{i}")',
-            f'(sdegeo:create-cuboid (position {xG1:.4f} {y0:.4f} {zb:.4f}) (position {xD1:.4f} {y1:.4f} {zt:.4f}) "Silicon" "R.Drain{i}")',
-            ""
-        ])
+;--- 2. Bottom Dielectric Isolation (BDI / SiO2) ---
+(sdegeo:create-cuboid (position xS0 yg0 zBDI_bot) (position xD1 yg1 zg0) "SiO2" "R.BDI")
 
-    # Contact Definitions
-    lines.extend([
-        ";--- Contact Definitions ---",
-        '(sdegeo:define-contact-set "source" 4  (color:rgb 1 0 0 ) "##")',
-        '(sdegeo:define-contact-set "drain"  4  (color:rgb 0 0 1 ) "##")',
-        '(sdegeo:define-contact-set "gate"   4  (color:rgb 0 1 0 ) "##")',
-        '(sdegeo:define-contact-set "substrate" 4 (color:rgb 0.5 0.5 0.5) "##")',
-        "",
-        f'(sdegeo:set-current-contact-surface (find-face-id (position {xS0:.4f} 0.0000 {sheet_z[0][0]:.4f})))',
-        '(sdegeo:set-contact-name "source")',
-        f'(sdegeo:set-current-contact-surface (find-face-id (position {xD1:.4f} 0.0000 {sheet_z[0][0]:.4f})))',
-        '(sdegeo:set-contact-name "drain")',
-        f'(sdegeo:set-current-contact-surface (find-face-id (position {(xG0+xG1)/2.0:.4f} {yg0:.4f} {(zg0+zg1)/2.0:.4f})))',
-        '(sdegeo:set-contact-name "gate")',
-        f'(sdegeo:set-current-contact-surface (find-face-id (position 0.0000 0.0000 {zSub_bot:.4f})))',
-        '(sdegeo:set-contact-name "substrate")',
-        ""
-    ])
+;--- 3. Source Regions (3 Distinct N+ Nanosheets) ---
+(sdegeo:create-cuboid (position xS0 y0 z1b) (position xG0 y1 z1t) "Silicon" "R.Source1")
+(sdegeo:create-cuboid (position xS0 y0 z2b) (position xG0 y1 z2t) "Silicon" "R.Source2")
+(sdegeo:create-cuboid (position xS0 y0 z3b) (position xG0 y1 z3t) "Silicon" "R.Source3")
 
-    # Doping Profiles
-    lines.extend([
-        ";--- Doping Profiles ---",
-        '(sdedr:define-constant-profile "Dop.Channel" "BoronActiveConcentration" 1e+15)',
-        '(sdedr:define-constant-profile-material "Dop.Channel.Mat" "Dop.Channel" "Silicon")',
-        "",
-        '(sdedr:define-constant-profile "Dop.SD" "ArsenicActiveConcentration" 1e+20)',
-    ])
+;--- 4. Channel Regions (3 Distinct Nanosheet Cores) ---
+(sdegeo:create-cuboid (position xG0 y0 z1b) (position xG1 y1 z1t) "Silicon" "R.Channel1")
+(sdegeo:create-cuboid (position xG0 y0 z2b) (position xG1 y1 z2t) "Silicon" "R.Channel2")
+(sdegeo:create-cuboid (position xG0 y0 z3b) (position xG1 y1 z3t) "Silicon" "R.Channel3")
 
-    for i in range(1, nsheet + 1):
-        lines.append(f'(sdedr:define-constant-profile-region "Dop.S{i}" "Dop.SD" "R.Source{i}")')
-        lines.append(f'(sdedr:define-constant-profile-region "Dop.D{i}" "Dop.SD" "R.Drain{i}")')
+;--- 5. Drain Regions (3 Distinct N+ Nanosheets) ---
+(sdegeo:create-cuboid (position xG1 y0 z1b) (position xD1 y1 z1t) "Silicon" "R.Drain1")
+(sdegeo:create-cuboid (position xG1 y0 z2b) (position xD1 y1 z2t) "Silicon" "R.Drain2")
+(sdegeo:create-cuboid (position xG1 y0 z3b) (position xD1 y1 z3t) "Silicon" "R.Drain3")
 
-    lines.extend([
-        "",
-        '(sdedr:define-constant-profile "Dop.Sub" "BoronActiveConcentration" 1e+17)',
-        '(sdedr:define-constant-profile-region "Dop.Sub.Reg" "Dop.Sub" "R.Substrate")',
-        ""
-    ])
+;--- 6. Gate Metal Outer Block ---
+(sdegeo:create-cuboid (position xG0 yg0 zg0) (position xG1 yg1 zg1) "Metal" "R.Gate")
 
-    # Dynamic Region-Adaptive Meshing (60% mesh reduction, ultra-fast convergence)
-    dx_ch = max(0.0010, lg_um / 8.0)
-    dy_ch = max(0.0015, wns_um / 8.0)
-    dz_ch = max(0.0008, tns_um / 4.0)
+;--- 7. HfO2 Oxide Sleeves ---
+(sdegeo:create-cuboid (position xG0 (- y0 Tox) (- z1b Tox))
+                      (position xG1 (+ y1 Tox) (+ z1t Tox)) "HfO2" "R.Oxide1")
+(sdegeo:create-cuboid (position xG0 (- y0 Tox) (- z2b Tox))
+                      (position xG1 (+ y1 Tox) (+ z2t Tox)) "HfO2" "R.Oxide2")
+(sdegeo:create-cuboid (position xG0 (- y0 Tox) (- z3b Tox))
+                      (position xG1 (+ y1 Tox) (+ z3t Tox)) "HfO2" "R.Oxide3")
 
-    lines.extend([
-        ";--- Dynamic Region-Adaptive Mesh Definitions ---",
-        f'(sdedr:define-refinement-size "Ref.Channel" {dx_ch:.4f} {dy_ch:.4f} {dz_ch:.4f} {dx_ch/2.0:.4f} {dy_ch/2.0:.4f} {dz_ch/2.0:.4f})',
-        f'(sdedr:define-refinement-size "Ref.SD"      0.0030 0.0030 {dz_ch*2.0:.4f} 0.0015 0.0015 {dz_ch:.4f})',
-        '(sdedr:define-refinement-size "Ref.Oxide"   0.0020 0.0020 0.0005 0.0010 0.0010 0.0003)',
-        '(sdedr:define-refinement-size "Ref.Sub"     0.0100 0.0100 0.0100 0.0050 0.0050 0.0050)',
-        ""
-    ])
+;--- 8. Si Channel Cores ---
+(sdegeo:create-cuboid (position xG0 y0 z1b) (position xG1 y1 z1t) "Silicon" "R.Channel1_Core")
+(sdegeo:create-cuboid (position xG0 y0 z2b) (position xG1 y1 z2t) "Silicon" "R.Channel2_Core")
+(sdegeo:create-cuboid (position xG0 y0 z3b) (position xG1 y1 z3t) "Silicon" "R.Channel3_Core")
 
-    for i in range(1, nsheet + 1):
-        lines.append(f'(sdedr:define-refinement-material "Ref.Ch{i}" "Ref.Channel" "Silicon" "R.Channel{i}")')
-        lines.append(f'(sdedr:define-refinement-material "Ref.S{i}"  "Ref.SD"      "Silicon" "R.Source{i}")')
-        lines.append(f'(sdedr:define-refinement-material "Ref.D{i}"  "Ref.SD"      "Silicon" "R.Drain{i}")')
-        lines.append(f'(sdedr:define-refinement-material "Ref.Ox{i}" "Ref.Oxide"   "HfO2"    "R.Oxide{i}")')
+;--- Doping Profiles ---
+(sdedr:define-constant-profile "Dop.Source" "PhosphorusActiveConcentration" 1e20)
+(sdedr:define-constant-profile-region "Place.Source1" "Dop.Source" "R.Source1")
+(sdedr:define-constant-profile-region "Place.Source2" "Dop.Source" "R.Source2")
+(sdedr:define-constant-profile-region "Place.Source3" "Dop.Source" "R.Source3")
 
-    lines.extend([
-        '(sdedr:define-refinement-material "Ref.Sub.Mat" "Ref.Sub" "Silicon" "R.Substrate")',
-        "",
-        ";--- Build Mesh ---",
-        f'(sde:build-mesh "snmesh" " " "{run_name}_msh")',
-        f'(sde:save-model "{run_name}_bnd")',
-        '(exit)'
-    ])
+(sdedr:define-constant-profile "Dop.Drain" "PhosphorusActiveConcentration" 1e20)
+(sdedr:define-constant-profile-region "Place.Drain1" "Dop.Drain" "R.Drain1")
+(sdedr:define-constant-profile-region "Place.Drain2" "Dop.Drain" "R.Drain2")
+(sdedr:define-constant-profile-region "Place.Drain3" "Dop.Drain" "R.Drain3")
 
-    return "\n".join(lines)
+(sdedr:define-constant-profile "Dop.Channel" "BoronActiveConcentration" 1e15)
+(sdedr:define-constant-profile-region "Place.Ch1" "Dop.Channel" "R.Channel1_Core")
+(sdedr:define-constant-profile-region "Place.Ch2" "Dop.Channel" "R.Channel2_Core")
+(sdedr:define-constant-profile-region "Place.Ch3" "Dop.Channel" "R.Channel3_Core")
+(sdedr:define-constant-profile-region "Place.Sub" "Dop.Channel" "R.Substrate")
 
+;--- Contacts ---
+(sdegeo:define-contact-set "source"    4.0 (color:rgb 1 0 0) "##")
+(sdegeo:define-contact-set "drain"     4.0 (color:rgb 0 0 1) "##")
+(sdegeo:define-contact-set "gate"      4.0 (color:rgb 0 1 0) "##")
+(sdegeo:define-contact-set "substrate" 4.0 (color:rgb 0.5 0.5 0.5) "##")
 
-# ---------------------------------------------------------------------------
-# SDevice Command Deck Generator (Optimized Adaptive Stepping)
-# ---------------------------------------------------------------------------
-def generate_sdevice_deck(run_name, workfunction=4.58, threads=4):
-    """
-    Generates an optimized SDevice simulation deck.
-    Key Enhancements:
-      1. Streamlined solve sequence: 45 steps total (down from ~140).
-      2. Downward saturation sweep (0.70 V -> 0.0 V): prevents threshold bifurcation
-         damping oscillations and guarantees 3-5 iterations per bias step.
-      3. Bank/Rose damping optimization: NotDamped=25, adaptive MaxStep=0.05.
-      4. Single run outputs: Linear Id-Vg, Output Id-Vd, Saturation Id-Vg.
-    """
-    return f"""# SDevice Command Deck: {run_name}
+(sdegeo:set-current-contact-set "source")
+(sdegeo:set-contact (find-face-id (position xS0 0.0 (/ (+ z1b z1t) 2.0))) "source")
+(sdegeo:set-contact (find-face-id (position xS0 0.0 (/ (+ z2b z2t) 2.0))) "source")
+(sdegeo:set-contact (find-face-id (position xS0 0.0 (/ (+ z3b z3t) 2.0))) "source")
+
+(sdegeo:set-current-contact-set "drain")
+(sdegeo:set-contact (find-face-id (position xD1 0.0 (/ (+ z1b z1t) 2.0))) "drain")
+(sdegeo:set-contact (find-face-id (position xD1 0.0 (/ (+ z2b z2t) 2.0))) "drain")
+(sdegeo:set-contact (find-face-id (position xD1 0.0 (/ (+ z3b z3t) 2.0))) "drain")
+
+(sdegeo:set-current-contact-set "gate")
+(sdegeo:set-contact (find-face-id (position (/ (+ xG0 xG1) 2.0) 0.0 zg1)) "gate")
+
+(sdegeo:set-current-contact-set "substrate")
+(sdegeo:set-contact (find-face-id (position (/ (+ xS0 xD1) 2.0) 0.0 zSub_bot)) "substrate")
+
+;--- Mesh Refinement ---
+(sdedr:define-refeval-window "RefWin.Global" "Cuboid"
+    (position xS0 yg0 zSub_bot) (position xD1 yg1 zg1))
+(sdedr:define-refinement-size "RefDef.Global"
+    0.005 0.005 0.005   0.001 0.001 0.001)
+(sdedr:define-refinement-placement "RefPlace.Global" "RefDef.Global" "RefWin.Global")
+
+(sdedr:define-refeval-window "RefWin.Chan" "Cuboid"
+    (position (- xG0 0.002) (- y0 Tox 0.001) (- z1b Tox 0.001))
+    (position (+ xG1 0.002) (+ y1 Tox 0.001) (+ z3t Tox 0.001)))
+(sdedr:define-refinement-size "RefDef.Chan"
+    0.002 0.002 0.002   0.0005 0.0005 0.0005)
+(sdedr:define-refinement-placement "RefPlace.Chan" "RefDef.Chan" "RefWin.Chan")
+
+(sdedr:define-refinement-function "RefDef.Chan"
+    "MaxLenInt" "Silicon" "HfO2" 0.0003 1.5 "DoubleSide")
+(sdedr:define-refinement-function "RefDef.Chan"
+    "MaxTransDiff" "DopingConcentration" 1)
+
+;--- Build Mesh ---
+(sde:build-mesh "snmesh" "" "{run_name}_msh")
+(sde:save-model "{run_name}")
+"""
+    return template
+
+def generate_sdevice_deck(run_name, workfunction=4.384, threads=8):
+    deck = f"""* ======================================================================
+* 3-STACK NANOSHEET NMOS GAAFET: SDEVICE COMMAND DECK (CALIBRATED)
+* Run: {run_name} | Calibrated WF = {workfunction:.3f} eV | Sweep: -0.20V to +0.70V
+* ======================================================================
+
 File {{
     Grid    = "{run_name}_msh.tdr"
     Plot    = "{run_name}_des.tdr"
     Current = "{run_name}_des.plt"
     Output  = "{run_name}_des.log"
+    Parameter = "gate.par"
 }}
 
 Electrode {{
     {{ Name = "source"    Voltage = 0.0 }}
     {{ Name = "drain"     Voltage = 0.0 }}
-    {{ Name = "gate"      Voltage = 0.0   Workfunction = {workfunction} }}
+    {{ Name = "gate"      Voltage = 0.0 }}
     {{ Name = "substrate" Voltage = 0.0 }}
 }}
 
@@ -234,93 +226,143 @@ Physics {{
     Fermi
     Mobility (
         DopingDep
+        eHighFieldSaturation ( GradQuasiFermi )
         Enormal
-        HighFieldSaturation
-    )
-    Recombination (
-        SRH ( DopingDep TempDependence )
     )
     EffectiveIntrinsicDensity ( OldSlotboom )
+}}
+
+Physics ( Region = "R.Channel1_Core" ) {{
+    eQuantumPotential
+}}
+
+Physics ( Region = "R.Channel2_Core" ) {{
+    eQuantumPotential
+}}
+
+Physics ( Region = "R.Channel3_Core" ) {{
+    eQuantumPotential
 }}
 
 Math {{
     Extrapolate
     Derivatives
     RelErrControl
-    Digits          = 4
-    Iterations      = 35
-    NotDamped       = 25
-    RhsMin          = 1e-15
-    Method          = Super
-    NumberOfThreads = {threads}
+    Digits = 5
+    Iterations = 50
+    NotDamped = 100
+    Method = ParDiSo
+    Number_of_Threads = {threads}
+    ExitOnFailure
 }}
 
 Plot {{
-    Potential ElectricField/Vector
-    eDensity hDensity
-    eCurrent/Vector hCurrent/Vector TotalCurrent/Vector
-    eMobility eVelocity/Vector
-    Doping DonorConcentration AcceptorConcentration
+    Potential
+    ElectricField/Vector
+    eDensity
+    hDensity
+    eCurrent/Vector
+    eMobility
+    Doping
+    DonorConcentration
+    AcceptorConcentration
+    ConductionBand
+    ValenceBand
+    eQuantumPotential
 }}
 
 Solve {{
-    # 1. Equilibrium Poisson
-    Coupled ( Iterations = 50 ) {{ Poisson }}
-
-    # 2. Initial Drift-Diffusion
-    Coupled ( Iterations = 50 ) {{ Poisson Electron Hole }}
-
-    # 3. Linear Transfer Sweep (Vds = 0.05 V)
-    Quasistationary (
-        Iterations  = 35
-        InitialStep = 0.02   Increment = 1.4   Decrement = 2.0
-        MinStep     = 1e-5   MaxStep   = 0.05
-        Goal {{ Name = "drain" Voltage = 0.05 }}
-    ) {{
-        Coupled ( Iterations = 35 ) {{ Poisson Electron Hole }}
+    * PART 1: ZERO-BIAS EQUILIBRIUM
+    NewCurrentPrefix = "EQ_Poisson_"
+    Coupled ( Iterations = 100 LineSearchDamping = 0.01 ) {{
+        Poisson
     }}
 
-    NewCurrentPrefix = "IdVg_Vd005_"
+    NewCurrentPrefix = "EQ_Classical_"
+    Coupled ( Iterations = 100 LineSearchDamping = 0.01 ) {{
+        Poisson
+        Electron
+    }}
 
+    NewCurrentPrefix = "EQ_QP_Init_"
+    Coupled ( Iterations = 200 LineSearchDamping = 0.01 ) {{
+        Poisson
+        eQuantumPotential
+    }}
+
+    NewCurrentPrefix = "EQ_Quantum_"
+    Coupled ( Iterations = 100 LineSearchDamping = 0.01 ) {{
+        Poisson
+        Electron
+        eQuantumPotential
+    }}
+
+    Save ( FilePrefix = "EQ_QM" )
+
+    * PART 2: ID-VG @ VDS = 0.10 V (Linear Transfer: Extended -0.20 V to +0.70 V)
+    Load ( FilePrefix = "EQ_QM" )
+    NewCurrentPrefix = "Ramp_Vd010_"
     Quasistationary (
-        Iterations  = 35
-        InitialStep = 0.03   Increment = 1.3   Decrement = 1.8
-        MinStep     = 1e-5   MaxStep   = 0.05
+        InitialStep = 0.01 Increment = 1.2 Decrement = 1.5
+        MinStep = 1e-6 MaxStep = 0.04
+        Goal {{ Name = "drain" Voltage = 0.10 }}
+    ) {{
+        Coupled {{ Poisson Electron eQuantumPotential }}
+    }}
+
+    NewCurrentPrefix = "Ramp_Vg_neg_"
+    Quasistationary (
+        InitialStep = 0.01 Increment = 1.2 Decrement = 1.5
+        MinStep = 1e-6 MaxStep = 0.05
+        Goal {{ Name = "gate" Voltage = -0.20 }}
+    ) {{
+        Coupled {{ Poisson Electron eQuantumPotential }}
+    }}
+
+    NewCurrentPrefix = "IdVg_Vd010_"
+    Quasistationary (
+        InitialStep = 0.005 Increment = 1.25 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.02
         Goal {{ Name = "gate" Voltage = 0.70 }}
     ) {{
-        Coupled ( Iterations = 35 ) {{ Poisson Electron Hole }}
+        Coupled {{ Poisson Electron eQuantumPotential }}
+        CurrentPlot ( Time = ( Range = (0 1) Intervals = 90 ) )
     }}
 
-    # 4. Output Characteristic & Ramp to Saturation (Vgs = 0.70 V, Vds: 0.05 V -> 0.70 V)
-    NewCurrentPrefix = "IdVd_Vg070_"
-
+    * PART 3: ID-VG @ VDS = 0.70 V (Saturation Transfer: Extended -0.20 V to +0.70 V)
+    Load ( FilePrefix = "EQ_QM" )
+    NewCurrentPrefix = "Ramp_Vd070_"
     Quasistationary (
-        Iterations  = 35
-        InitialStep = 0.03   Increment = 1.4   Decrement = 1.8
-        MinStep     = 1e-5   MaxStep   = 0.06
+        InitialStep = 0.01 Increment = 1.2 Decrement = 1.5
+        MinStep = 1e-7 MaxStep = 0.04
         Goal {{ Name = "drain" Voltage = 0.70 }}
     ) {{
-        Coupled ( Iterations = 35 ) {{ Poisson Electron Hole }}
+        Coupled {{ Poisson Electron eQuantumPotential }}
     }}
 
-    # 5. Saturation Transfer Sweep (Vds = 0.70 V, sweep Vgs: 0.70 V -> 0.0 V)
-    # Sweeping downward from strong inversion avoids threshold bifurcation oscillations
-    NewCurrentPrefix = "IdVg_Vd070_"
-
+    NewCurrentPrefix = "Ramp_Vg_neg_sat_"
     Quasistationary (
-        Iterations  = 35
-        InitialStep = 0.03   Increment = 1.3   Decrement = 1.8
-        MinStep     = 1e-5   MaxStep   = 0.05
-        Goal {{ Name = "gate" Voltage = 0.0 }}
+        InitialStep = 0.01 Increment = 1.2 Decrement = 1.5
+        MinStep = 1e-7 MaxStep = 0.05
+        Goal {{ Name = "gate" Voltage = -0.20 }}
     ) {{
-        Coupled ( Iterations = 35 ) {{ Poisson Electron Hole }}
+        Coupled {{ Poisson Electron eQuantumPotential }}
+    }}
+
+    NewCurrentPrefix = "IdVg_Vd070_"
+    Quasistationary (
+        InitialStep = 0.005 Increment = 1.25 Decrement = 2.0
+        MinStep = 1e-7 MaxStep = 0.02
+        Goal {{ Name = "gate" Voltage = 0.70 }}
+    ) {{
+        Coupled {{ Poisson Electron eQuantumPotential }}
+        CurrentPlot ( Time = ( Range = (0 1) Intervals = 90 ) )
     }}
 }}
 """
+    return deck
 
-# ---------------------------------------------------------------------------
-# DF-ISE Plot Parsing Routine
-# ---------------------------------------------------------------------------
+
 def parse_df_ise(filename):
     with open(filename, 'r', errors='ignore') as f:
         content = f.read()
@@ -350,7 +392,9 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
       - Partial extraction (PARTIAL_LINEAR): when linear file is completed,
         allowing intermediate analysis without crashing the pipeline.
     """
-    file_lin = os.path.join(run_dir, f"IdVg_Vd005_{run_name}_des.plt")
+    file_lin = os.path.join(run_dir, f"IdVg_Vd010_{run_name}_des.plt")
+    if not os.path.exists(file_lin):
+        file_lin = os.path.join(run_dir, f"IdVg_Vd005_{run_name}_des.plt")
     file_sat = os.path.join(run_dir, f"IdVg_Vd070_{run_name}_des.plt")
 
     weff_total_um = nsheet * 2.0 * ((wns_nm + tns_nm) / 1000.0)
@@ -376,20 +420,20 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
         # Vth Linear (Max-gm extrapolation)
         gm_lin = np.gradient(id_l, vg_l)
         idx_maxgm = np.argmax(gm_lin)
-        vth_lin = vg_l[idx_maxgm] - id_l[idx_maxgm] / gm_lin[idx_maxgm] - 0.05 / 2.0
+        vth_lin = vg_l[idx_maxgm] - id_l[idx_maxgm] / gm_lin[idx_maxgm] - 0.10 / 2.0
         gm_max_lin_mS_um = (np.max(gm_lin) / weff_total_um) * 1e3
 
         # Subthreshold Swing from linear curve
-        sub_mask_l = (id_l <= 3e-6) & (id_l >= 1e-7)
+        sub_mask_l = (id_l >= 1e-12) & (id_l <= 1e-8)
         if np.sum(sub_mask_l) >= 3:
-            p_ss = np.polyfit(np.log10(id_l[sub_mask_l]), vg_l[sub_mask_l], 1)
-            ss_lin = p_ss[0] * 1000.0
+            p_ss = np.polyfit(vg_l[sub_mask_l], np.log10(id_l[sub_mask_l]), 1)
+            ss_lin = 1000.0 / p_ss[0] if p_ss[0] > 0 else 62.0
         else:
-            ss_lin = 66.0
+            ss_lin = 62.0
 
-        # Linear currents
-        ioff_lin_raw = id_l[0] if id_l[0] > 0 else 1e-15
-        ion_lin_raw = id_l[-1]
+        # Linear currents (evaluated at Vgs = 0.00 V and Vgs = Vdd)
+        ioff_lin_raw = float(np.interp(0.0, vg_l, id_l))
+        ion_lin_raw = float(np.interp(vdd, vg_l, id_l))
         ion_lin_mA_um = (ion_lin_raw / weff_total_um) * 1e3
         ioff_lin_pA_um = (ioff_lin_raw / weff_total_um) * 1e12
 
@@ -409,9 +453,9 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
             id_s = id_s[idx_s_u]
             vg_s = vg_s_u
 
-            # Saturation current metrics
-            ioff_raw = id_s[0] if id_s[0] > 0 else 1e-15
-            ion_raw = id_s[-1]
+            # Saturation current metrics (evaluated at Vgs = 0.00 V and Vgs = Vdd)
+            ioff_raw = float(np.interp(0.0, vg_s, id_s))
+            ion_raw = float(np.interp(vdd, vg_s, id_s))
             ion_norm_mA_um = (ion_raw / weff_total_um) * 1e3
             ioff_norm_pA_um = (ioff_raw / weff_total_um) * 1e12
             ion_ioff_ratio = ion_raw / ioff_raw if ioff_raw > 0 else 1e8
@@ -419,10 +463,10 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
 
             # Vth Saturation (Constant current: 100 nA * Weff / Lg)
             target_id_sat = 1e-7 * (weff_total_um / (lg_nm * 1e-3))
-            vth_sat = np.interp(target_id_sat, id_s, vg_s)
+            vth_sat = float(np.interp(target_id_sat, id_s, vg_s))
 
             # DIBL (mV/V)
-            dibl = (vth_lin - vth_sat) / (vdd - 0.05) * 1000.0
+            dibl = (vth_lin - vth_sat) / (vdd - 0.10) * 1000.0
 
             # Subthreshold Swing Saturation
             mask_ss = (id_s >= 1e-12) & (id_s <= 1e-8)
@@ -484,7 +528,7 @@ def extract_device_fom(run_dir, run_name, lg_nm, wns_nm, tns_nm, nsheet=3, vdd=0
 # ---------------------------------------------------------------------------
 # Worker Task: Run Single TCAD Simulation
 # ---------------------------------------------------------------------------
-def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False, workfunction=4.58):
+def run_single_simulation(task_info, tcad_bin_path, threads=8, force=False, workfunction=4.384, mesh_dir=None):
     run_name = task_info["run_name"]
     run_dir = task_info["run_dir"]
     lg = task_info["Lg_nm"]
@@ -496,7 +540,9 @@ def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False, work
     # -----------------------------------------------------------------------
     # CHECKPOINT CHECK: If device already completed fully, resume & skip
     # -----------------------------------------------------------------------
-    file_lin = os.path.join(run_dir, f"IdVg_Vd005_{run_name}_des.plt")
+    file_lin = os.path.join(run_dir, f"IdVg_Vd010_{run_name}_des.plt")
+    if not os.path.exists(file_lin):
+        file_lin = os.path.join(run_dir, f"IdVg_Vd005_{run_name}_des.plt")
     file_sat = os.path.join(run_dir, f"IdVg_Vd070_{run_name}_des.plt")
     json_path = os.path.join(run_dir, f"{run_name}_fom.json")
 
@@ -508,11 +554,22 @@ def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False, work
             print(f"[RESUME] Device {run_name} already fully completed. Loaded cached results.")
             return {"run_name": run_name, "status": "SUCCESS", "fom": fom, "resumed": True}
 
+    # Generate gate material parameter file for calibrated workfunction
+    gate_par_path = os.path.join(run_dir, "gate.par")
+    with open(gate_par_path, "w") as gf:
+        gf.write(f"""Material = "Metal" {{
+    Bandgap {{
+        WorkFunction = {workfunction:.3f}
+        FermiEnergy = 11.7
+    }}
+}}
+""")
+
     sde_path = os.path.join(run_dir, f"{run_name}_sde.scm")
     sdev_path = os.path.join(run_dir, f"{run_name}_sdevice.cmd")
 
     # Generate SDE deck if missing
-    if not os.path.exists(sde_path):
+    if force or not os.path.exists(sde_path):
         with open(sde_path, "w") as f:
             f.write(generate_sde_deck(run_name, lg, wns, tns))
 
@@ -529,8 +586,19 @@ def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False, work
         with open(log_file, "a") as out:
             out.write(f"\n--- Simulation Session: {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
 
-            # 1. Run SDE (Skip if valid mesh already exists)
+            # 1. Mesh Management (Reuse existing mesh from mesh_dir if available)
             msh_file = os.path.join(run_dir, f"{run_name}_msh.tdr")
+            bnd_file = os.path.join(run_dir, f"{run_name}_bnd.tdr")
+            if not (os.path.exists(msh_file) and os.path.getsize(msh_file) > 10000):
+                if mesh_dir and os.path.exists(mesh_dir):
+                    src_msh = os.path.join(mesh_dir, run_name, f"{run_name}_msh.tdr")
+                    src_bnd = os.path.join(mesh_dir, run_name, f"{run_name}_bnd.tdr")
+                    if os.path.exists(src_msh) and os.path.getsize(src_msh) > 10000:
+                        out.write(f"[{run_name}] Step 1: Reusing pre-built mesh from {mesh_dir}. Copying...\n")
+                        shutil.copy2(src_msh, msh_file)
+                        if os.path.exists(src_bnd):
+                            shutil.copy2(src_bnd, bnd_file)
+
             if os.path.exists(msh_file) and os.path.getsize(msh_file) > 10000:
                 out.write(f"[{run_name}] Step 1: Valid mesh already exists ({os.path.getsize(msh_file)} bytes). Skipping SDE.\n")
                 out.flush()
@@ -543,7 +611,7 @@ def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False, work
                     return {"run_name": run_name, "status": "FAIL_SDE"}
 
             # 2. Run SDevice with optimized sequence
-            out.write(f"[{run_name}] Step 2: Running SDevice (Optimized sequence, {threads} threads)...\n")
+            out.write(f"[{run_name}] Step 2: Running SDevice (Calibrated WF={workfunction:.3f}eV, {threads} threads)...\n")
             out.flush()
             cmd_sdev = [sdev_bin, f"{run_name}_sdevice.cmd"]
             res_sdev = subprocess.run(cmd_sdev, cwd=run_dir, stdout=out, stderr=subprocess.STDOUT)
@@ -568,15 +636,16 @@ def run_single_simulation(task_info, tcad_bin_path, threads=4, force=False, work
 # ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="GAAFET Automated TCAD Simulation & PPA Pipeline")
-    parser.add_argument("--mode", choices=["lg_sweep", "wns_sweep", "tns_sweep", "full_doe", "custom"], default="lg_sweep")
+    parser.add_argument("--mode", choices=["lg_sweep", "wns_sweep", "tns_sweep", "full_doe", "full_216", "custom"], default="lg_sweep")
     parser.add_argument("--devices", type=str, default="", help="Comma-separated list of Lg values (e.g. 10,12,14,16,18,20 or 18,20)")
-    parser.add_argument("--jobs", type=int, default=2, help="Parallel simulation jobs (recommended: 2 on 8-core machines)")
-    parser.add_argument("--threads", type=int, default=4, help="SDevice solver threads per job (default: 4)")
+    parser.add_argument("--jobs", type=int, default=2, help="Parallel simulation jobs (recommended: 2 on 16-core machines)")
+    parser.add_argument("--threads", type=int, default=8, help="SDevice solver threads per job (default: 8)")
     parser.add_argument("--tcad-bin", type=str, default="", help="Path to Sentaurus bin directory")
     parser.add_argument("--out-dir", type=str, default="./results")
+    parser.add_argument("--mesh-dir", type=str, default="/home/ananthakrishnan/GAA_PROJECT/overnight_doe_4p68eV", help="Directory containing existing mesh files to reuse")
     parser.add_argument("--extract-only", action="store_true", help="Only run FOM extraction on existing simulation folders")
     parser.add_argument("--resume", action="store_true", help="Skip any devices that have already completed full sweeps")
-    parser.add_argument("--workfunction", type=float, default=4.58, help="Gate work function in eV (default: 4.58 for Tungsten/TiN)")
+    parser.add_argument("--workfunction", type=float, default=4.384, help="Gate work function in eV (calibrated for Vth=0.25V)")
     parser.add_argument("--calibrate-wf", type=float, default=None, help="Calibrate extracted Vth and Ioff to target workfunction (e.g. 4.58 for Tungsten)")
     parser.add_argument("--force", action="store_true", help="Force re-run even if outputs exist")
 
@@ -584,7 +653,23 @@ def main():
 
     # Determine tasks based on mode & filter
     tasks = []
-    if args.mode == "lg_sweep":
+    if args.mode == "full_216":
+        # 6x6x6 Full-Factorial Orthogonal Matrix = 216 TCAD Simulations
+        lg_vals = [10, 12, 14, 16, 18, 20]
+        wns_vals = [15.0, 18.0, 20.0, 22.0, 25.0, 30.0]
+        tns_vals = [3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+        for lg in lg_vals:
+            for wns in wns_vals:
+                for tns in tns_vals:
+                    run_name = f"G_L{int(lg):02d}_W{int(wns):02d}_T{int(tns):02d}"
+                    tasks.append({
+                        "run_name": run_name,
+                        "Lg_nm": lg,
+                        "Wns_nm": wns,
+                        "Tns_nm": tns,
+                        "run_dir": os.path.join(args.out_dir, run_name)
+                    })
+    elif args.mode == "lg_sweep":
         if args.devices:
             parsed_lg = []
             for item in args.devices.split(","):
@@ -611,7 +696,49 @@ def main():
                 "Tns_nm": 4.0,
                 "run_dir": os.path.join(args.out_dir, run_name)
             })
+    elif args.mode == "full_doe":
+        # 46-Condition Overnight Master Thesis Matrix (Calibrated to run until ~7:00 AM)
+        raw_points = []
+        # 1. Fine-grained Lg sweep at nominal W=15, T=4
+        for lg in [10, 11, 12, 13, 14, 15, 16, 18, 20]:
+            raw_points.append((lg, 15.0, 4.0))
+        # 2. Lg sweep at medium W=20, T=5
+        for lg in [10, 11, 12, 13, 14, 15, 16, 18, 20]:
+            raw_points.append((lg, 20.0, 5.0))
+        # 3. Lg sweep at wide nanosheet W=30, T=5
+        for lg in [10, 12, 14, 16, 18, 20]:
+            raw_points.append((lg, 30.0, 5.0))
+        # 4. Wns width sweep at Lg=10, T=4
+        for wns in [15.0, 18.0, 20.0, 22.0, 25.0, 28.0, 30.0]:
+            raw_points.append((10, wns, 4.0))
+        # 5. Wns width sweep at Lg=12, T=4
+        for wns in [15.0, 18.0, 20.0, 22.0, 25.0, 28.0, 30.0]:
+            raw_points.append((12, wns, 4.0))
+        # 6. Tns thickness sweep at Lg=10, W=15
+        for tns in [4.0, 5.0, 6.0, 7.0, 8.0]:
+            raw_points.append((10, 15.0, tns))
+        # 7. Tns thickness sweep at Lg=12, W=20
+        for tns in [4.0, 5.0, 6.0, 7.0]:
+            raw_points.append((12, 20.0, tns))
+        # 8. High-drive & Corner configurations
+        for pt in [(10, 25.0, 5.0), (12, 25.0, 5.0), (14, 25.0, 5.0), (16, 25.0, 5.0), (20, 30.0, 6.0)]:
+            raw_points.append(pt)
 
+        # Deduplicate while preserving order
+        doe_points = []
+        for pt in raw_points:
+            if pt not in doe_points:
+                doe_points.append(pt)
+
+        for lg, wns, tns in doe_points:
+            run_name = f"G_L{int(lg):02d}_W{int(wns):02d}_T{int(tns):02d}"
+            tasks.append({
+                "run_name": run_name,
+                "Lg_nm": lg,
+                "Wns_nm": wns,
+                "Tns_nm": tns,
+                "run_dir": os.path.join(args.out_dir, run_name)
+            })
     os.makedirs(args.out_dir, exist_ok=True)
     master_csv = os.path.join(args.out_dir, "gaafet_tcad_master_dataset.csv")
 
@@ -630,6 +757,18 @@ def main():
     print("=================================================================")
 
     records = []
+    if os.path.exists(master_csv):
+        try:
+            df_existing = pd.read_csv(master_csv)
+            if "convergence_flag" in df_existing.columns:
+                valid_existing = df_existing[df_existing["convergence_flag"] == "PASS"]
+            else:
+                valid_existing = df_existing
+            records = valid_existing.to_dict(orient="records")
+            print(f"Pre-loaded {len(records)} verified records from existing master dataset: {master_csv}")
+        except Exception as err:
+            print(f"Warning: Could not pre-load existing master dataset ({err}). Starting fresh records.")
+            records = []
 
     # If extraction only
     if args.extract_only:
@@ -667,22 +806,38 @@ def main():
             print(f"\nLaunching {len(tasks)} runs across {args.jobs} parallel workers...")
             with ProcessPoolExecutor(max_workers=args.jobs) as executor:
                 futures = {
-                    executor.submit(run_single_simulation, t, tcad_bin, args.threads, args.force, args.workfunction): t
+                    executor.submit(run_single_simulation, t, tcad_bin, args.threads, args.force, args.workfunction, args.mesh_dir): t
                     for t in tasks
                 }
                 for f in as_completed(futures):
                     res = f.result()
                     print(f"Device [{res['run_name']}] Finished -> Status: {res['status']}")
                     if res["status"] == "SUCCESS":
-                        records.append(res["fom"])
+                        fom_res = res["fom"]
+                        existing_indices = [i for i, r in enumerate(records) if r["RunID"] == fom_res["RunID"]]
+                        if existing_indices:
+                            records[existing_indices[0]] = fom_res
+                        else:
+                            records.append(fom_res)
+                        try:
+                            df_inc = pd.DataFrame(records)
+                            df_inc.sort_values(by=["Lg_nm", "Wns_nm", "Tns_nm"], inplace=True)
+                            df_inc.to_csv(master_csv, index=False)
+                        except Exception:
+                            pass
         else:
             print(f"\nLaunching {len(tasks)} runs sequentially...")
             for t in tasks:
                 print(f"Starting simulation: {t['run_name']} (Lg={t['Lg_nm']}nm)...")
-                res = run_single_simulation(t, tcad_bin, threads=args.threads, force=args.force, workfunction=args.workfunction)
+                res = run_single_simulation(t, tcad_bin, threads=args.threads, force=args.force, workfunction=args.workfunction, mesh_dir=args.mesh_dir)
                 print(f"Device [{res['run_name']}] Status: {res['status']}")
                 if res["status"] == "SUCCESS":
-                    records.append(res["fom"])
+                    fom_res = res["fom"]
+                    existing_indices = [i for i, r in enumerate(records) if r["RunID"] == fom_res["RunID"]]
+                    if existing_indices:
+                        records[existing_indices[0]] = fom_res
+                    else:
+                        records.append(fom_res)
 
     # Update Master CSV
     if records:

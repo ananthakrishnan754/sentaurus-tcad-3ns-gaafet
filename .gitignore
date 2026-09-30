@@ -1,22 +1,41 @@
 # Sentaurus TCAD binary mesh and temporary output files
 *.log
-*.cmd.bak
-*.scm.bak
-__pycache__/
 *.tmp
 *.err
+*.pid
+__pycache__/
+*.cmd.bak
+*.scm.bak
+*.plt.bak
 
-# Large archive files (GitHub file size limit is 100MB)
-*.zip
-*.tar.gz
+# Large binary simulation meshes and volume states (multi-gigabytes)
+*.tdr
+*.sav
+*.sat
+*.bnd
 
-# Ignore binary simulation meshes in experiment runs
-experiments/**/*.tdr
-results/**/*.tdr
-
-# Large personal images / office docs
+# Personal / temporary files
 *.jpeg
+*.jpg
 *.docx
+report.pdf
+
+# Ignore large archives > 50MB (GitHub limit is 100MB)
+*.zip
+Gituhb dataset/
+
+# Allow our compressed 10,000-simulation library archive (22MB)
+!gaafet_10000_simulation_library.tar.gz
+
+# Raw multi-gigabyte simulation run folders (all figures of merit are preserved in master CSVs)
+gaafet_overnight_100_runs/
+gaafet_10k_real_verification_runs/
+industry_calibrated_doe_vth0p25/G_L*/
+industry_calibrated_doe_vth0p25/verification_runs/
+overnight_doe_4p68eV/
+scratch_calibration_test/
+device/
+gaafet_10000_simulation_library/
 
 # Standalone nested repositories
 PN_JUNCTION_TCAD/
